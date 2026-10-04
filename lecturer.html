@@ -1,9 +1,9 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>E-Presence Lecturer</title>
+<title>E-Presence Lecturer | BrytMa Tech Uganda</title>
 <style>
   body{font-family:system-ui,sans-serif;margin:0;background:#f4f6f8;color:#111}
   main{max-width:480px;margin:0 auto;padding:20px}
@@ -17,11 +17,18 @@
   #qr{margin-top:14px;display:flex;justify-content:center}
   @media print{main>*{display:none}body.pl #listbox,body:not(.pl) #qrbox{display:block}.noprint{display:none!important}}
   table{width:100%;border-collapse:collapse}td,th{padding:6px;border-bottom:1px solid #ccc;text-align:left}
+  .brand{display:flex;align-items:center;gap:12px;margin:0 0 6px}
+  .logo{background:#0b5cad;color:#fff;width:44px;height:44px;border-radius:10px;display:grid;place-items:center;font-weight:800;font-size:1.3rem}
+  .brand b{display:block;font-size:1.25rem}.brand span{font-size:.8rem;color:#555}
+  .foot{margin-top:32px;font-size:.8rem;color:#666;text-align:center}
+  .pbrand{display:none;text-align:center;font-size:.8rem;color:#555;margin-top:16px}
+  @media print{.pbrand{display:block}}
 </style>
 </head>
 <body>
 <main>
-  <h1>E-Presence: Lecturer</h1>
+  <header class="brand"><div class="logo">E</div><div><b>E-Presence</b><span>BrytMa Tech Uganda</span></div></header>
+  <h1>Lecturer</h1>
   <label>Lecturer ID<input id="lid" autocomplete="off"></label>
   <label>PIN<input id="lpin" type="password" autocomplete="off"></label>
   <label>Course code<input id="course" placeholder="CSC2101" autocapitalize="characters"></label>
@@ -46,6 +53,7 @@
       <div id="m3" class="msg"></div>
     </div>
     <table id="tbl"></table>
+    <div class="pbrand">E-Presence by BrytMa Tech Uganda</div>
     <div class="noprint" id="acts" style="display:none">
       <button id="csv">Download CSV</button>
       <button id="pdf">Save as PDF</button>
@@ -59,6 +67,7 @@
     <div id="qr"></div>
     <button id="print" style="display:none">Print</button>
   </div>
+<p class="foot">Built in Uganda by BrytMa Tech Uganda</p>
 </main>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
@@ -146,4 +155,3 @@ $('print').onclick = () => window.print();
 </script>
 </body>
 </html>
-
