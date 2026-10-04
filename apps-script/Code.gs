@@ -129,29 +129,31 @@ function manual_(d) {
 // Lecturers tab: lecturer_id | pin | email
 const day_ = x => Utilities.formatDate(new Date(x), TZ, 'yyyy-MM-dd');
 
-function sessionOn_(course, date) {
-  const s = rows_('Sessions').filter(r => String(r[1]).trim() === String(course).trim() && day_(r[5]) === date);
-  return s.length ? s[s.length - 1] : null;
+// All sessions of a course on a date (a lecturer may restart a session after the window closes)
+function sessionsOn_(course, date) {
+  return rows_('Sessions').filter(r => String(r[1]).trim() === String(course).trim() && day_(r[5]) === date);
 }
 
-function listRows_(s) {
-  return rows_('Attendance').filter(r => r[0] === s[0])
+function listRows_(sessions) {
+  const ids = new Set(sessions.map(x => x[0])), seen = new Set();
+  return rows_('Attendance').filter(r => ids.has(r[0]))
+    .filter(r => { const k = String(r[1]).trim(); if (seen.has(k)) return false; seen.add(k); return true; })
     .map(r => ({ no: r[1], name: r[2], time: Utilities.formatDate(new Date(r[4]), TZ, 'HH:mm'), status: r[5] }))
     .sort((a, b) => String(a.name).localeCompare(String(b.name)));
 }
 
 function list_(d) {
   if (!lecturerOk_(d)) return 'BAD_LECTURER';
-  const s = sessionOn_(d.course, d.date);
-  return JSON.stringify(s ? { found: true, date: d.date, rows: listRows_(s) } : { found: false });
+  const s = sessionsOn_(d.course, d.date);
+  return JSON.stringify(s.length ? { found: true, date: d.date, rows: listRows_(s) } : { found: false });
 }
 
 function email_(d) {
   if (!lecturerOk_(d)) return 'BAD_LECTURER';
   const lec = rows_('Lecturers').find(r => String(r[0]).trim() === String(d.lecturer_id).trim());
   if (!lec || !String(lec[2]).trim()) return 'NO_EMAIL';
-  const s = sessionOn_(d.course, d.date);
-  if (!s) return 'NO_SESSION';
+  const s = sessionsOn_(d.course, d.date);
+  if (!s.length) return 'NO_SESSION';
   const q = v => { v = String(v == null ? '' : v); if (/^[=+\-@]/.test(v)) v = "'" + v; return '"' + v.replace(/"/g, '""') + '"'; };
   const rows = listRows_(s);
   const csv = [['Student no', 'Name', 'Time', 'Status']].concat(rows.map(r => [r.no, r.name, r.time, r.status]))
