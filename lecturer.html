@@ -1,0 +1,149 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E-Presence Lecturer</title>
+<style>
+  body{font-family:system-ui,sans-serif;margin:0;background:#f4f6f8;color:#111}
+  main{max-width:480px;margin:0 auto;padding:20px}
+  h1{font-size:1.4rem}h2{font-size:1.1rem;margin-top:28px}
+  label{display:block;margin-top:14px;font-weight:600}
+  input,select,textarea,button{width:100%;box-sizing:border-box;font-size:1.1rem;padding:14px;margin-top:6px;border:2px solid #888;border-radius:10px}
+  button{background:#0b5cad;color:#fff;border:0;font-weight:700;margin-top:18px}
+  button:disabled{opacity:.6}
+  .msg{margin-top:12px;padding:12px;border-radius:10px;font-weight:600;display:none}
+  .ok{background:#d6f5dc;color:#0a5c1f}.err{background:#fde0e0;color:#8a1111}
+  #qr{margin-top:14px;display:flex;justify-content:center}
+  @media print{main>*{display:none}body.pl #listbox,body:not(.pl) #qrbox{display:block}.noprint{display:none!important}}
+  table{width:100%;border-collapse:collapse}td,th{padding:6px;border-bottom:1px solid #ccc;text-align:left}
+</style>
+</head>
+<body>
+<main>
+  <h1>E-Presence: Lecturer</h1>
+  <label>Lecturer ID<input id="lid" autocomplete="off"></label>
+  <label>PIN<input id="lpin" type="password" autocomplete="off"></label>
+  <label>Course code<input id="course" placeholder="CSC2101" autocapitalize="characters"></label>
+  <label>Radius (m, 30-100)<input id="radius" type="number" min="30" max="100" value="60"></label>
+  <label>Window (minutes, 5-120)<input id="minutes" type="number" min="5" max="120" value="15"></label>
+
+  <h2>Start session</h2>
+  <button id="start">Start session</button>
+  <div id="m1" class="msg"></div>
+
+  <h2>Manual add</h2>
+  <label>Student numbers (new lines or commas)<textarea id="nos" rows="4"></textarea></label>
+  <label>Date<input id="date" type="date"></label>
+  <button id="manual">Add students</button>
+  <div id="m2" class="msg"></div>
+
+  <div id="listbox">
+    <h2 id="ptitle">Attendance list</h2>
+    <div class="noprint">
+      <label>Date<input id="ldate" type="date"></label>
+      <button id="showlist">Show list</button>
+      <div id="m3" class="msg"></div>
+    </div>
+    <table id="tbl"></table>
+    <div class="noprint" id="acts" style="display:none">
+      <button id="csv">Download CSV</button>
+      <button id="pdf">Save as PDF</button>
+      <button id="mail">Email me the list</button>
+    </div>
+  </div>
+
+  <div id="qrbox">
+    <h2>Course QR</h2>
+    <button id="mkqr">Generate QR</button>
+    <div id="qr"></div>
+    <button id="print" style="display:none">Print</button>
+  </div>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+const URL_ = 'https://script.google.com/macros/s/AKfycbxrvdQluH9CZ-FB8zzxQ3RUgnOSw2zYmo1kqXT61VZMAhpSZnTgpTrrUKTLdnw9PaspEw/exec';
+const $ = id => document.getElementById(id);
+$('date').value = new Date().toLocaleDateString('en-CA', { timeZone: 'Africa/Kampala' });
+$('ldate').value = $('date').value;
+
+function show(id, text, ok) { const m = $(id); m.textContent = text; m.className = 'msg ' + (ok ? 'ok' : 'err'); m.style.display = 'block'; }
+const post = body => fetch(URL_, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(body) }).then(r => r.text()).then(t => t.trim());
+const base = () => ({ lecturer_id: $('lid').value.trim(), pin: $('lpin').value.trim(), course: $('course').value.trim().toUpperCase() });
+
+$('start').onclick = () => {
+  if (!$('lid').value || !$('lpin').value || !$('course').value) return show('m1', 'Fill in lecturer ID, PIN and course.', false);
+  $('start').disabled = true;
+  navigator.geolocation.getCurrentPosition(async p => {
+    const acc = p.coords.accuracy;
+    if (acc > 30) { show('m1', 'Location is weak (' + Math.round(acc) + ' m). Move near a window and retry.', false); $('start').disabled = false; return; }
+    try {
+      const res = await post({ action: 'start', ...base(), lat: p.coords.latitude, lng: p.coords.longitude, accuracy: acc,
+        radius: +$('radius').value, minutes: +$('minutes').value, mode: 'flag' });
+      if (res.startsWith('STARTED:')) show('m1', 'Session started. Students can mark now.', true);
+      else show('m1', res === 'BAD_LECTURER' ? 'Wrong lecturer ID or PIN.' : res === 'WEAK_LOCATION' ? 'Location too weak.' : 'Something went wrong: ' + res, false);
+    } catch (e) { show('m1', 'Network problem. Try again.', false); }
+    $('start').disabled = false;
+  }, () => { show('m1', 'Turn on location and allow it, then try again.', false); $('start').disabled = false; },
+  { enableHighAccuracy: true, timeout: 15000 });
+};
+
+$('manual').onclick = async () => {
+  const nos = $('nos').value.split(/[\s,]+/).filter(Boolean);
+  if (!nos.length) return show('m2', 'Enter at least one student number.', false);
+  $('manual').disabled = true;
+  try {
+    const res = await post({ action: 'manual', ...base(), date: $('date').value, student_nos: nos });
+    if (res.startsWith('ADDED:')) show('m2', 'Added ' + res.split(':')[1] + ' student(s).', true);
+    else show('m2', res === 'BAD_LECTURER' ? 'Wrong lecturer ID or PIN.' : 'Something went wrong: ' + res, false);
+  } catch (e) { show('m2', 'Network problem. Try again.', false); }
+  $('manual').disabled = false;
+};
+
+let rep = null;
+const cell = (tr, t) => { const c = document.createElement('td'); c.textContent = t; tr.appendChild(c); };
+$('showlist').onclick = async () => {
+  if (!$('lid').value || !$('lpin').value || !$('course').value) return show('m3', 'Fill in lecturer ID, PIN and course at the top.', false);
+  let r;
+  try { r = await post({ action: 'list', ...base(), date: $('ldate').value }); } catch (e) { return show('m3', 'Network problem. Try again.', false); }
+  if (r === 'BAD_LECTURER') return show('m3', 'Wrong lecturer ID or PIN.', false);
+  rep = JSON.parse(r);
+  const t = $('tbl'); t.innerHTML = '';
+  if (!rep.found) { $('acts').style.display = 'none'; return show('m3', 'No session for that course and date.', false); }
+  show('m3', rep.rows.length + ' students signed in.', true);
+  $('ptitle').textContent = $('course').value.trim().toUpperCase() + ' attendance, ' + rep.date;
+  const h = document.createElement('tr');
+  ['No', 'Name', 'Time', 'Status'].forEach(x => { const th = document.createElement('th'); th.textContent = x; h.appendChild(th); });
+  t.appendChild(h);
+  rep.rows.forEach(x => { const tr = document.createElement('tr'); cell(tr, x.no); cell(tr, x.name); cell(tr, x.time); cell(tr, x.status === 'FLAGGED' ? 'CHECK' : x.status === 'MANUAL' ? 'MANUAL' : 'OK'); t.appendChild(tr); });
+  $('acts').style.display = 'block';
+};
+const q = v => { v = String(v == null ? '' : v); if (/^[=+\-@]/.test(v)) v = "'" + v; return '"' + v.replace(/"/g, '""') + '"'; };
+$('csv').onclick = () => {
+  const rows = [['Student no', 'Name', 'Time', 'Status']].concat(rep.rows.map(x => [x.no, x.name, x.time, x.status]));
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([rows.map(r => r.map(q).join(',')).join('\n')], { type: 'text/csv' }));
+  a.download = $('course').value.trim().toUpperCase() + '-' + rep.date + '.csv';
+  a.click();
+};
+$('pdf').onclick = () => { document.body.classList.add('pl'); window.print(); document.body.classList.remove('pl'); };
+$('mail').onclick = async () => {
+  try {
+    const r = await post({ action: 'email', ...base(), date: $('ldate').value });
+    show('m3', r === 'SENT' ? 'Sent to your email.' : r === 'NO_EMAIL' ? 'No email on file for you. Add it in the Lecturers tab.' : 'Could not send: ' + r, r === 'SENT');
+  } catch (e) { show('m3', 'Network problem. Try again.', false); }
+};
+
+$('mkqr').onclick = () => {
+  const c = $('course').value.trim().toUpperCase();
+  if (!c) return alert('Enter a course code first.');
+  const link = location.href.replace(/lecturer\.html.*$/, '') + 'index.html?course=' + encodeURIComponent(c);
+  $('qr').innerHTML = '';
+  new QRCode($('qr'), { text: link, width: 240, height: 240 });
+  $('print').style.display = 'block';
+};
+$('print').onclick = () => window.print();
+</script>
+</body>
+</html>
+

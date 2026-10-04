@@ -1,0 +1,86 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E-Presence</title>
+<style>
+  body{font-family:system-ui,sans-serif;margin:0;background:#f4f6f8;color:#111}
+  main{max-width:420px;margin:0 auto;padding:20px}
+  h1{font-size:1.4rem}
+  label{display:block;margin-top:14px;font-weight:600}
+  input,select,textarea,button{width:100%;box-sizing:border-box;font-size:1.1rem;padding:14px;margin-top:6px;border:2px solid #888;border-radius:10px}
+  button{background:#0b5cad;color:#fff;border:0;font-weight:700;margin-top:18px}
+  button:disabled{opacity:.6}
+  .note{font-size:.9rem;color:#444;margin-top:16px}
+  #msg{margin-top:18px;padding:14px;border-radius:10px;font-weight:600;display:none}
+  .ok{background:#d6f5dc;color:#0a5c1f}.warn{background:#fff0c2;color:#6b4e00}.err{background:#fde0e0;color:#8a1111}
+</style>
+</head>
+<body>
+<main>
+  <h1>E-Presence</h1>
+  <div id="course"></div>
+  <div id="form">
+    <label>Student number<input id="no" inputmode="text" autocomplete="off"></label>
+    <label>PIN<input id="pin" type="password" inputmode="numeric" autocomplete="off"></label>
+    <p class="note">Your location is used once to confirm you are in class. It is not tracked.</p>
+    <button id="go">Mark attendance</button>
+  </div>
+  <div id="msg"></div>
+</main>
+<script>
+const URL_ = 'https://script.google.com/macros/s/AKfycbxrvdQluH9CZ-FB8zzxQ3RUgnOSw2zYmo1kqXT61VZMAhpSZnTgpTrrUKTLdnw9PaspEw/exec';
+const $ = id => document.getElementById(id);
+const course = new URLSearchParams(location.search).get('course');
+
+function show(text, cls) { const m = $('msg'); m.textContent = text; m.className = cls; m.style.display = 'block'; }
+
+function deviceId() {
+  let id = localStorage.getItem('device_id');
+  if (!id) { id = 'web-' + crypto.randomUUID(); localStorage.setItem('device_id', id); }
+  return id;
+}
+
+async function post(body) {
+  const send = () => fetch(URL_, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(body) }).then(r => r.text());
+  try { return await send(); }
+  catch (e) { await new Promise(r => setTimeout(r, 2000)); return await send(); }
+}
+
+const MESSAGES = {
+  OK: ['Attendance recorded. Thank you.', 'ok'],
+  OK_FLAGGED: ['Recorded. Waiting for lecturer review.', 'warn'],
+  NOT_REGISTERED: ['Student number not found. Check it and try again.', 'err'],
+  BAD_PIN: ['Wrong PIN.', 'err'],
+  LOCKED: ['Too many wrong tries. Try again in 10 minutes.', 'err'],
+  NO_OPEN_SESSION: ['No open session for this course right now.', 'err'],
+  ALREADY_MARKED: ['You are already marked for this session.', 'ok']
+};
+
+if (!course) { $('form').style.display = 'none'; show('No course in link', 'err'); }
+else {
+  $('course').innerHTML = '<strong>Course: </strong>' + course.replace(/[<>&"]/g, '');
+  $('no').value = localStorage.getItem('last_no') || '';
+}
+
+$('go').onclick = () => {
+  const no = $('no').value.trim(), pin = $('pin').value.trim();
+  if (!no || !pin) return show('Enter your student number and PIN.', 'err');
+  localStorage.setItem('last_no', no);
+  $('go').disabled = true; $('msg').style.display = 'none';
+  navigator.geolocation.getCurrentPosition(async p => {
+    try {
+      const res = (await post({ course, student_no: no, pin, device_id: deviceId(),
+        lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy })).trim();
+      if (res.startsWith('OUT_OF_RANGE:')) show('You are about ' + res.split(':')[1] + ' m from the room. Move closer and try again.', 'err');
+      else { const m = MESSAGES[res]; m ? show(m[0], m[1]) : show('Something went wrong. Try again.', 'err'); }
+    } catch (e) { show('Network problem. Check your data and try again.', 'err'); }
+    $('go').disabled = false; $('pin').value = '';
+  }, () => { show('Turn on location and allow it, then try again.', 'err'); $('go').disabled = false; },
+  { enableHighAccuracy: true, timeout: 15000 });
+};
+</script>
+</body>
+</html>
+
