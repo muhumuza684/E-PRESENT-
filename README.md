@@ -44,12 +44,12 @@ Format the `pin` and `student_no` columns as plain text so leading zeros are kep
 
 **3. Pages.** Replace `PASTE_WEB_APP_URL_HERE` in `index.html` and `lecturer.html` with the Web app URL, then publish the two files with GitHub Pages.
 
-**4. Students.** Add students to the `Students` tab and lecturers to the `Lecturers` tab (with an email if they want the list sent to them).
+**4. People.** Add lecturers to the `Lecturers` tab (with an email if they want the list sent to them). Students do not need to be added: the first time a student scans, they enter their Reg No, choose a 4-digit PIN and type their full name, and they are added to the `Students` tab automatically. You can also paste a class list into `Students` yourself (reg no, name, PIN). To reset a forgotten PIN, edit that student's row.
 
 ## Using it
 
 - **Lecturer:** open `lecturer.html`, enter ID, PIN and course code, click **Start session** (allow location), then **Generate QR**. The default window is 15 minutes and the default radius is 60 m.
-- **Student:** scan the QR, which opens `index.html?course=COURSECODE`, then enter student number and PIN.
+- **Student:** scan the QR, which opens `index.html?course=COURSECODE`, then enter Reg No and PIN. First time only: also type your full name when asked.
 - **After class:** pick the date, click **Show list**, then **Download CSV**, **Save as PDF** (uses the browser's print dialog) or **Email me the list**.
 
 ## Data and privacy
@@ -63,7 +63,7 @@ Format the `pin` and `student_no` columns as plain text so leading zeros are kep
 Designed to be simple, not bulletproof.
 
 - **Does:** requires a student number and PIN, locks a student for 10 minutes after 5 wrong PINs, flags sign-ins from outside the radius, and flags two students signing in from the same phone.
-- **Does not:** stop a student giving a friend their PIN and QR link, hide data from anyone who can open the Sheet, or hash PINs (they are stored as plain text in the Sheet). Any lecturer who knows another lecturer's course code can list that course.
+- **Does not:** stop a student giving a friend their PIN and QR link, stop someone registering another student's Reg No before that student does (fix it by editing the row in `Students`), hide data from anyone who can open the Sheet, or hash PINs (they are stored as plain text in the Sheet). Any lecturer who knows another lecturer's course code can list that course.
 - Indoor location is imprecise. Treat **CHECK** as "look at this one", never as proof of absence.
 
 ## Known limitations

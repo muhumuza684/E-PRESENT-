@@ -38,8 +38,16 @@ function haversine_(lat1, lng1, lat2, lng2) {
 
 function scan_(d) {
   const no = String(d.student_no).trim(), pin = String(d.pin).trim();
-  const st = rows_('Students').find(r => String(r[0]).trim() === no);
-  if (!st) return 'NOT_REGISTERED';
+  let st = rows_('Students').find(r => String(r[0]).trim() === no);
+  if (!st) {
+    // First time: the student gives their name and the PIN they typed becomes their PIN.
+    const name = String(d.name || '').trim().replace(/^[=+\-@]+/, '').slice(0, 60);
+    if (!name) return 'NOT_REGISTERED';
+    if (!/^\d{4}$/.test(pin)) return 'BAD_NEW_PIN';
+    if (no.length < 3 || no.length > 40 || /^[=+\-@]/.test(no)) return 'NOT_REGISTERED';
+    st = [no, name, pin];
+    sheet_('Students').appendRow(st);
+  }
 
   const cache = CacheService.getScriptCache(), key = 'fail:' + no;
   const fails = Number(cache.get(key) || 0);
