@@ -15,8 +15,11 @@ try {
   Check 'lecturer account ready' (@('READY', 'ALREADY_SETUP') -contains $r) $r
 
   $room = @{ lat = 0.3476; lng = 32.5825 }
-  $r = Call (@{ action = 'start'; lecturer_id = $LecturerId; pin = $Pin; course = 'SMOKE'; accuracy = 10; radius = 60; minutes = 10; mode = 'flag' } + $room)
+  $r = Call (@{ action = 'start'; lecturer_id = $LecturerId; pin = $Pin; course = 'SMOKE'; accuracy = 10; radius = 60; minutes = 10; mode = 'flag'; title = 'Smoke run' } + $room)
   Check 'lecturer starts a session' ($r -like 'STARTED:*') "$r  (BAD_LECTURER = type the ID and PIN exactly as they are in the Lecturers tab)"
+
+  $t = ((Invoke-WebRequest "$Url`?course=SMOKE" -UseBasicParsing).Content | ConvertFrom-Json).title
+  Check 'student page can read the lecturer title' ($t -eq 'Smoke run') $t
 
   $scan = @{ course = 'SMOKE'; student_no = 'SMOKE/001'; pin = '1234'; name = 'Smoke Test'; device_id = 'smoke-device'; accuracy = 10; lat = 0.3476; lng = 32.5825 }
   $r = Call $scan
@@ -37,6 +40,7 @@ try {
   $r = Call @{ action = 'list'; lecturer_id = $LecturerId; pin = $Pin; course = 'SMOKE'; date = $today }
   $list = $r | ConvertFrom-Json
   Check 'lecturer list shows both students' ($list.found -and (@($list.rows).Count -ge 2)) $r
+  Check 'lecturer list carries the title' ($list.title -eq 'Smoke run') $list.title
 } catch {
   Write-Host "ERROR: $($_.Exception.Message)" -ForegroundColor Red
   $script:fail++
@@ -44,4 +48,3 @@ try {
 Write-Host ""
 if ($script:fail -eq 0) { Write-Host "ALL CHECKS PASSED" -ForegroundColor Green; exit 0 }
 else { Write-Host "$($script:fail) CHECK(S) FAILED" -ForegroundColor Red; exit 1 }
-

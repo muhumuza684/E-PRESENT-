@@ -1,15 +1,27 @@
 const TZ = 'Africa/Kampala';
 
-function doGet() {
+function doGet(e) {
   try { ensureTabs_(); } catch (err) { return ContentService.createTextOutput('E-Presence is running, but tabs could not be created: ' + err); }
+  const course = e && e.parameter && e.parameter.course;
+  if (course) return ContentService.createTextOutput(JSON.stringify({ title: titleFor_(course) }));
   return ContentService.createTextOutput('E-Presence is running');
+}
+
+// Title the lecturer gave the currently open session of a course ('' if none)
+function titleFor_(course) {
+  const all = rows_('Sessions'), now = new Date();
+  for (let i = all.length - 1; i >= 0; i--) {
+    const r = all[i];
+    if (String(r[1]).trim() === String(course).trim() && isTrue_(r[6]) && now < new Date(r[5])) return String(r[8] || '');
+  }
+  return '';
 }
 
 // Creates any missing tab with its headers. Never clears or overwrites existing data.
 const TABS_ = {
   Lecturers: ['lecturer_id', 'pin', 'email'],
   Students: ['student_no', 'name', 'pin'],
-  Sessions: ['session_id', 'course', 'lat', 'lng', 'radius', 'closes_at', 'is_open', 'mode'],
+  Sessions: ['session_id', 'course', 'lat', 'lng', 'radius', 'closes_at', 'is_open', 'mode', 'title'],
   Attendance: ['session_id', 'student_no', 'name', 'device_id', 'time', 'status', 'distance', 'reason']
 };
 // Writes one row as plain text, so PINs and Reg Nos like 0123 keep their leading zero.
@@ -20,7 +32,7 @@ function putRow_(name, row) {
 
 function ensureTabs_() {
   const cache = CacheService.getScriptCache();
-  if (cache.get('tabs_v2')) return;
+  if (cache.get('tabs_v3')) return;
   const ss = SpreadsheetApp.getActive();
   // Dates read back wrong (hours off) if the Sheet's timezone differs from the script's, which
   // breaks session expiry. Keep them identical.
@@ -34,7 +46,9 @@ function ensureTabs_() {
   });
   const def = ss.getSheetByName('Sheet1');
   if (def && ss.getSheets().length > 1 && def.getLastRow() === 0) ss.deleteSheet(def);
-  cache.put('tabs_v2', '1', 21600);
+  const ses = ss.getSheetByName('Sessions');   // older Sheets have no title column yet
+  if (!String(ses.getDataRange().getValues()[0][8] || '').trim()) ses.getRange(1, 9).setValue('title');
+  cache.put('tabs_v3', '1', 21600);
 }
 
 // First-time setup: creates the first lecturer, and only while the Lecturers tab is empty.
@@ -147,8 +161,9 @@ function start_(d) {
   rows_('Sessions').forEach((r, i) => {
     if (String(r[1]).trim() === String(d.course).trim() && isTrue_(r[6])) sh.getRange(i + 2, 7).setValue(false);
   });
+  const title = String(d.title || '').trim().replace(/^[=+\-@]+/, '').slice(0, 80);
   const id = Utilities.getUuid();
-  sh.appendRow([id, d.course, d.lat, d.lng, radius, new Date(Date.now() + minutes * 60000), true, mode]);
+  sh.appendRow([id, d.course, d.lat, d.lng, radius, new Date(Date.now() + minutes * 60000), true, mode, title]);
   return 'STARTED:' + id;
 }
 
@@ -199,7 +214,8 @@ function listRows_(sessions) {
 function list_(d) {
   if (!lecturerOk_(d)) return 'BAD_LECTURER';
   const s = sessionsOn_(d.course, d.date);
-  return JSON.stringify(s.length ? { found: true, date: d.date, rows: listRows_(s) } : { found: false });
+  const title = s.map(x => String(x[8] || '')).filter(Boolean).pop() || '';
+  return JSON.stringify(s.length ? { found: true, date: d.date, title, rows: listRows_(s) } : { found: false });
 }
 
 function email_(d) {
@@ -213,7 +229,8 @@ function email_(d) {
   const csv = [['Student no', 'Name', 'Time', 'Status']].concat(rows.map(r => [r.no, r.name, r.time, r.status]))
     .map(r => r.map(q).join(',')).join('\n');
   const file = d.course + '-' + d.date + '.csv';
-  MailApp.sendEmail(String(lec[2]).trim(), 'Attendance ' + d.course + ' ' + d.date,
+  const title = s.map(x => String(x[8] || '')).filter(Boolean).pop() || '';
+  MailApp.sendEmail(String(lec[2]).trim(), 'Attendance ' + d.course + (title ? ' - ' + title : '') + ' ' + d.date,
     rows.length + ' students signed in. List attached.', { attachments: [Utilities.newBlob(csv, 'text/csv', file)] });
   return 'SENT';
 }

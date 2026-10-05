@@ -26,7 +26,7 @@
 <body>
 <main>
   <header class="brand"><div class="logo">E</div><div><b>E-Presence</b><span>BrytMa Tech Uganda</span></div></header>
-  <h1>Mark attendance</h1>
+  <h1 id="ttl">Mark attendance</h1>
   <div id="course"></div>
   <div id="form">
     <label>Registration number (Reg No)<input id="no" inputmode="text" autocomplete="off" placeholder="e.g. 2024/BSE/108/PS"></label>
@@ -73,6 +73,9 @@ if (!course) { $('form').style.display = 'none'; show('No course in link', 'err'
 else {
   $('course').innerHTML = '<strong>Course: </strong>' + course.replace(/[<>&"]/g, '');
   $('no').value = localStorage.getItem('last_no') || '';
+  fetch(URL_ + '?course=' + encodeURIComponent(course)).then(r => r.text()).then(t => JSON.parse(t)).then(j => {
+    if (j.title) { $('ttl').textContent = j.title; document.title = j.title + ' | E-Presence'; }
+  }).catch(() => {});
 }
 
 $('go').onclick = () => {

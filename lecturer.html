@@ -32,15 +32,15 @@
   <label>Lecturer ID<input id="lid" autocomplete="off"></label>
   <label>PIN<input id="lpin" type="password" autocomplete="off"></label>
   <label>Course code<input id="course" placeholder="CSC2101" autocapitalize="characters"></label>
-  <label>Radius (m, 30-100)<input id="radius" type="number" min="30" max="100" value="60"></label>
-  <label>Window (minutes, 5-120)<input id="minutes" type="number" min="5" max="120" value="15"></label>
+  <label>Title (optional)<input id="title" placeholder="e.g. Week 5 lecture" maxlength="80"></label>
+  <label>How close students must be (metres)<input id="radius" type="number" min="30" max="100" value="60"></label>
+  <label>How long sign-in stays open (minutes)<input id="minutes" type="number" min="5" max="120" value="15"></label>
 
-  <h2>Start session</h2>
   <button id="start">Start session</button>
   <div id="m1" class="msg"></div>
 
-  <h2>Manual add</h2>
-  <label>Student numbers (new lines or commas)<textarea id="nos" rows="4"></textarea></label>
+  <h2>Add by hand (students without a phone)</h2>
+  <label>Reg Nos (one per line, or separated by commas)<textarea id="nos" rows="4"></textarea></label>
   <label>Date<input id="date" type="date"></label>
   <button id="manual">Add students</button>
   <div id="m2" class="msg"></div>
@@ -88,7 +88,7 @@ $('start').onclick = () => {
     if (acc > 30) { show('m1', 'Location is weak (' + Math.round(acc) + ' m). Move near a window and retry.', false); $('start').disabled = false; return; }
     try {
       const res = await post({ action: 'start', ...base(), lat: p.coords.latitude, lng: p.coords.longitude, accuracy: acc,
-        radius: +$('radius').value, minutes: +$('minutes').value, mode: 'flag' });
+        radius: +$('radius').value, minutes: +$('minutes').value, mode: 'flag', title: $('title').value.trim() });
       if (res.startsWith('STARTED:')) show('m1', 'Session started. Students can mark now.', true);
       else show('m1', res === 'BAD_LECTURER' ? 'Wrong lecturer ID or PIN.' : res === 'WEAK_LOCATION' ? 'Location too weak.' : 'Something went wrong: ' + res, false);
     } catch (e) { show('m1', 'Network problem. Try again.', false); }
@@ -120,7 +120,8 @@ $('showlist').onclick = async () => {
   const t = $('tbl'); t.innerHTML = '';
   if (!rep.found) { $('acts').style.display = 'none'; return show('m3', 'No session for that course and date.', false); }
   show('m3', rep.rows.length + ' students signed in.', true);
-  $('ptitle').textContent = $('course').value.trim().toUpperCase() + ' attendance, ' + rep.date;
+  const cc = $('course').value.trim().toUpperCase();
+  $('ptitle').textContent = (rep.title ? rep.title + ' (' + cc + ')' : cc + ' attendance') + ', ' + rep.date;
   const h = document.createElement('tr');
   ['No', 'Name', 'Time', 'Status'].forEach(x => { const th = document.createElement('th'); th.textContent = x; h.appendChild(th); });
   t.appendChild(h);
