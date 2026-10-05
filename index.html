@@ -5,94 +5,103 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>E-Presence | BrytMa Tech Uganda</title>
 <style>
-  body{font-family:system-ui,sans-serif;margin:0;background:#f4f6f8;color:#111}
-  main{max-width:420px;margin:0 auto;padding:20px}
-  h1{font-size:1.4rem}
-  label{display:block;margin-top:14px;font-weight:600}
-  input,select,textarea,button{width:100%;box-sizing:border-box;font-size:1.1rem;padding:14px;margin-top:6px;border:2px solid #888;border-radius:10px}
-  button{background:#0b5cad;color:#fff;border:0;font-weight:700;margin-top:18px}
+  *{box-sizing:border-box}
+  body{font-family:system-ui,sans-serif;margin:0;background:#f4f6f8;color:#111;min-height:100vh;display:flex;flex-direction:column}
+  main{width:100%;max-width:420px;margin:0 auto;padding:16px;flex:1}
+  .brand{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+  .logo{background:#0b5cad;color:#fff;width:38px;height:38px;border-radius:9px;display:grid;place-items:center;font-weight:800;font-size:1.2rem}
+  .brand b{display:block;font-size:1.1rem}.brand span{font-size:.75rem;color:#555}
+  h1{font-size:1.35rem;margin:10px 0 4px;word-break:break-word}
+  label{display:block;margin-top:10px;font-weight:600;font-size:.9rem}
+  input{width:100%;font-size:16px;padding:12px;margin-top:4px;border:2px solid #8a8f98;border-radius:10px;background:#fff}
+  input:focus{outline:none;border-color:#0b5cad}
+  button{width:100%;font-size:1.05rem;padding:14px;margin-top:14px;border:0;border-radius:10px;background:#0b5cad;color:#fff;font-weight:700}
   button:disabled{opacity:.6}
-  .note{font-size:.9rem;color:#444;margin-top:16px}
-  #msg{margin-top:18px;padding:14px;border-radius:10px;font-weight:600;display:none}
+  #msg{margin-top:12px;padding:12px;border-radius:10px;font-weight:600;display:none}
   .ok{background:#d6f5dc;color:#0a5c1f}.warn{background:#fff0c2;color:#6b4e00}.err{background:#fde0e0;color:#8a1111}
-  .brand{display:flex;align-items:center;gap:12px;margin:0 0 6px}
-  .logo{background:#0b5cad;color:#fff;width:44px;height:44px;border-radius:10px;display:grid;place-items:center;font-weight:800;font-size:1.3rem}
-  .brand b{display:block;font-size:1.25rem}.brand span{font-size:.8rem;color:#555}
-  .foot{margin-top:32px;font-size:.8rem;color:#666;text-align:center}
-  .pbrand{display:none;text-align:center;font-size:.8rem;color:#555;margin-top:16px}
-  @media print{.pbrand{display:block}}
+  #done{display:none;text-align:center;padding:24px 8px}
+  #done .tick{font-size:3.5rem;line-height:1;color:#0a8a2f}
+  .foot{font-size:.75rem;color:#666;text-align:center;padding:10px}
 </style>
 </head>
 <body>
 <main>
   <header class="brand"><div class="logo">E</div><div><b>E-Presence</b><span>BrytMa Tech Uganda</span></div></header>
-  <h1 id="ttl">Mark attendance</h1>
-  <div id="course"></div>
-  <div id="form">
-    <label>Registration number (Reg No)<input id="no" inputmode="text" autocomplete="off" placeholder="e.g. 2024/BSE/108/PS"></label>
-    <label>PIN (4 digits)<input id="pin" type="password" inputmode="numeric" maxlength="4" autocomplete="off"></label>
-    <label id="namebox" style="display:none">Full name (first time only)<input id="name" autocomplete="name" placeholder="As on your student card"></label>
-    <p class="note">First time? Enter your Reg No and choose any 4-digit PIN you will remember. Then enter your full name when asked.</p>
-    <p class="note">Your location is used once to confirm you are in class. It is not tracked.</p>
-    <button id="go">Mark attendance</button>
+  <h1 id="ttl">Sign in</h1>
+  <div id="loading" style="color:#555;margin-top:12px">Loading...</div>
+  <div id="form" style="display:none">
+    <label id="regbox">Registration number (Reg No)<input id="reg" autocomplete="off" placeholder="e.g. 2024/BSE/108/PS"></label>
+    <label>Full name<input id="name" autocomplete="name" placeholder="As on your student card"></label>
+    <label>PIN shown by your lecturer<input id="pin" autocomplete="off" autocapitalize="none" inputmode="text" placeholder="PIN on the screen"></label>
+    <button id="go">Sign in</button>
   </div>
+  <div id="done"><div class="tick">&#10003;</div><h2 id="donetxt">You are signed in</h2><p id="donesub" style="color:#444"></p></div>
   <div id="msg"></div>
-<p class="foot">Built in Uganda by BrytMa Tech Uganda</p>
 </main>
+<p class="foot">Built in Uganda by BrytMa Tech Uganda</p>
 <script>
 const URL_ = 'https://script.google.com/macros/s/AKfycbxrvdQluH9CZ-FB8zzxQ3RUgnOSw2zYmo1kqXT61VZMAhpSZnTgpTrrUKTLdnw9PaspEw/exec';
 const $ = id => document.getElementById(id);
-const course = new URLSearchParams(location.search).get('course');
+const sid = new URLSearchParams(location.search).get('s');
+let info = null;
 
-function show(text, cls) { const m = $('msg'); m.textContent = text; m.className = cls; m.style.display = 'block'; }
-
+function show(t, c) { const m = $('msg'); m.textContent = t; m.className = c; m.style.display = 'block'; }
 function deviceId() {
   let id = localStorage.getItem('device_id');
   if (!id) { id = 'web-' + crypto.randomUUID(); localStorage.setItem('device_id', id); }
   return id;
 }
-
 async function post(body) {
   const send = () => fetch(URL_, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(body) }).then(r => r.text());
-  try { return await send(); }
-  catch (e) { await new Promise(r => setTimeout(r, 2000)); return await send(); }
+  try { return (await send()).trim(); }
+  catch (e) { await new Promise(r => setTimeout(r, 2000)); return (await send()).trim(); }
 }
 
-const MESSAGES = {
-  OK: ['Attendance recorded. Thank you.', 'ok'],
-  OK_FLAGGED: ['Recorded. Waiting for lecturer review.', 'warn'],
-  NOT_REGISTERED: ['First time here? Type your full name above and tap again. The PIN you typed becomes your PIN.', 'warn'],
-  BAD_NEW_PIN: ['Choose a PIN of exactly 4 digits.', 'err'],
-  BAD_PIN: ['Wrong PIN.', 'err'],
-  LOCKED: ['Too many wrong tries. Try again in 10 minutes.', 'err'],
-  NO_OPEN_SESSION: ['No open session for this course right now.', 'err'],
-  ALREADY_MARKED: ['You are already marked for this session.', 'ok']
+const MSG = {
+  BAD_PIN: ['Wrong PIN. Check the PIN on your lecturer\'s screen.', 'err'],
+  NO_OPEN_SESSION: ['This sign-in is closed. Ask your lecturer.', 'err'],
+  MISSING_INFO: ['Please fill in every box.', 'err'],
+  TOO_MANY: ['Too many wrong tries. Wait 5 minutes and try again.', 'err']
+};
+const DONE = {
+  OK: ['You are signed in', 'Thank you.'],
+  OK_FLAGGED: ['You are signed in', 'Your lecturer may double-check this entry.'],
+  ALREADY_MARKED: ['You are already signed in', 'Nothing more to do.']
 };
 
-if (!course) { $('form').style.display = 'none'; show('No course in link', 'err'); }
-else {
-  $('course').innerHTML = '<strong>Course: </strong>' + course.replace(/[<>&"]/g, '');
-  $('no').value = localStorage.getItem('last_no') || '';
-  fetch(URL_ + '?course=' + encodeURIComponent(course)).then(r => r.text()).then(t => JSON.parse(t)).then(j => {
-    if (j.title) { $('ttl').textContent = j.title; document.title = j.title + ' | E-Presence'; }
-  }).catch(() => {});
-}
+(async () => {
+  if (!sid) { $('loading').style.display = 'none'; return show('This link is incomplete. Scan the QR code again.', 'err'); }
+  try { info = JSON.parse(await (await fetch(URL_ + '?s=' + encodeURIComponent(sid))).text()); }
+  catch (e) { $('loading').style.display = 'none'; return show('No connection. Check your data and reload.', 'err'); }
+  $('loading').style.display = 'none';
+  if (!info.open) return show('This sign-in is closed. Ask your lecturer.', 'err');
+  $('ttl').textContent = info.name;
+  document.title = info.name + ' | E-Presence';
+  if (!info.ask_regno) $('regbox').style.display = 'none';
+  $('reg').value = localStorage.getItem('last_reg') || '';
+  $('name').value = localStorage.getItem('last_name') || '';
+  $('form').style.display = 'block';
+  ($('reg').value && $('name').value ? $('pin') : $('reg').offsetParent ? $('reg') : $('name')).focus();
+})();
 
-$('go').onclick = () => {
-  const no = $('no').value.trim(), pin = $('pin').value.trim();
-  if (!no || !pin) return show('Enter your student number and PIN.', 'err');
-  localStorage.setItem('last_no', no);
+$('go').onclick = async () => {
+  const reg = $('reg').value.trim(), name = $('name').value.trim(), pin = $('pin').value.trim();
+  if ((info.ask_regno && !reg) || !name || !pin) return show(MSG.MISSING_INFO[0], 'err');
   $('go').disabled = true; $('msg').style.display = 'none';
-  navigator.geolocation.getCurrentPosition(async p => {
-    try {
-      const res = (await post({ course, student_no: no, pin, name: $('name').value.trim(), device_id: deviceId(),
-        lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy })).trim();
-      if (res.startsWith('OUT_OF_RANGE:')) show('You are about ' + res.split(':')[1] + ' m from the room. Move closer and try again.', 'err');
-      else { if (res === 'NOT_REGISTERED') $('namebox').style.display = 'block'; const m = MESSAGES[res]; m ? show(m[0], m[1]) : show('Something went wrong. Try again.', 'err'); }
-    } catch (e) { show('Network problem. Check your data and try again.', 'err'); }
-    $('go').disabled = false; $('pin').value = '';
-  }, () => { show('Turn on location and allow it, then try again.', 'err'); $('go').disabled = false; },
-  { enableHighAccuracy: true, timeout: 15000 });
+  let res;
+  try { res = await post({ session_id: sid, pin, reg_no: reg, name, device_id: deviceId() }); }
+  catch (e) { $('go').disabled = false; return show('No connection. Check your data and try again.', 'err'); }
+  $('go').disabled = false;
+  if (DONE[res]) {
+    localStorage.setItem('last_reg', reg); localStorage.setItem('last_name', name);
+    $('form').style.display = 'none'; $('msg').style.display = 'none';
+    $('donetxt').textContent = DONE[res][0]; $('donesub').textContent = name + '. ' + DONE[res][1];
+    $('done').style.display = 'block';
+  } else {
+    const m = MSG[res] || ['Something went wrong. Try again.', 'err'];
+    show(m[0], m[1]);
+    if (res === 'BAD_PIN') { $('pin').value = ''; $('pin').focus(); }
+  }
 };
 </script>
 </body>

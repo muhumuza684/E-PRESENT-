@@ -1,6 +1,5 @@
 # One-command update for E-Presence: copies files, deploys the backend, runs the live test,
 # and pushes to GitHub ONLY if every check passes.
-param([string]$LecturerId, [string]$Pin, [string]$Email)
 $ErrorActionPreference = 'Stop'
 $env:Path += ";$((npm config get prefix).Trim())"
 $DeploymentId = 'AKfycbxrvdQluH9CZ-FB8zzxQ3RUgnOSw2zYmo1kqXT61VZMAhpSZnTgpTrrUKTLdnw9PaspEw'
@@ -12,9 +11,6 @@ $here  = $PSScriptRoot
 function Step($m) { Write-Host "`n== $m" -ForegroundColor Cyan }
 function Must($what) { if ($LASTEXITCODE -ne 0) { throw "$what failed (exit code $LASTEXITCODE)" } }
 foreach ($p in $clasp, $repo) { if (-not (Test-Path $p)) { throw "Missing folder: $p" } }
-if (-not $LecturerId) { $LecturerId = Read-Host "Lecturer ID exactly as saved in the Sheet (yours: LOO1 with letter O's)" }
-if (-not $Pin)        { $Pin        = Read-Host "Lecturer PIN" }
-if (-not $Email)      { $Email      = Read-Host "Your email" }
 
 Step "Copy files"
 Copy-Item "$here\apps-script\Code.gs", "$here\apps-script\appsscript.json" $clasp -Force
@@ -28,7 +24,7 @@ clasp push -f; Must 'clasp push'
 clasp deploy --deploymentId $DeploymentId --description "E-Presence update $(Get-Date -Format 'yyyy-MM-dd HH:mm')"; Must 'clasp deploy'
 
 Step "Live test against your real backend"
-& "$here\smoke-test.ps1" -Url $Url -LecturerId $LecturerId -Pin $Pin -Email $Email
+& "$here\smoke-test.ps1" -Url $Url
 if ($LASTEXITCODE -ne 0) {
   Write-Host "`nA check failed. NOTHING was pushed to GitHub. Paste the red lines above to Claude." -ForegroundColor Red
   exit 1
@@ -36,7 +32,6 @@ if ($LASTEXITCODE -ne 0) {
 
 Step "Push to GitHub"
 Set-Location $repo
-git rm -r -q --ignore-unmatch SETUP.md sheet-templates
 git add .
 if (git status --porcelain) { git commit -q -m "E-Presence update"; Must 'git commit'; git push; Must 'git push' }
 else { Write-Host "Nothing new to push." }

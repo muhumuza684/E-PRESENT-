@@ -1,6 +1,6 @@
 # Live end-to-end check of the deployed E-Presence backend.
-# Creates a test course "SMOKE" and test students "SMOKE/001", "SMOKE/002" (delete those rows afterwards).
-param([string]$Url, [string]$LecturerId, [string]$Pin, [string]$Email)
+# Creates a session called "SMOKE test" with a few test people (delete those rows from the Sheet afterwards).
+param([string]$Url)
 $script:fail = 0
 function Call($o) { (Invoke-WebRequest -Method Post -Uri $Url -ContentType 'text/plain' -Body ($o | ConvertTo-Json -Compress) -UseBasicParsing).Content.Trim() }
 function Check($name, $ok, $got) {
@@ -11,36 +11,36 @@ try {
   $g = ([string](Invoke-WebRequest $Url -UseBasicParsing -TimeoutSec 90).Content).Trim()
   Check 'backend running and tabs ready' ($g -eq 'E-Presence is running') $g
 
-  $r = Call @{ action = 'init'; lecturer_id = $LecturerId; pin = $Pin; email = $Email }
-  Check 'lecturer account ready' (@('READY', 'ALREADY_SETUP') -contains $r) $r
+  $r = Call @{ action = 'start'; name = 'SMOKE test'; pin = '0482'; ask_regno = $true }
+  $s = $null; if ($r.StartsWith('{')) { $s = $r | ConvertFrom-Json }
+  Check 'lecturer starts a session (no login needed)' ($s -and $s.session_id -and $s.host_key) $r
+  if (-not $s) { throw "Could not start a session, stopping." }
+  $id = $s.session_id
+  $host_ = @{ session_id = $id; host_key = $s.host_key }
 
-  $room = @{ lat = 0.3476; lng = 32.5825 }
-  $r = Call (@{ action = 'start'; lecturer_id = $LecturerId; pin = $Pin; course = 'SMOKE'; accuracy = 10; radius = 60; minutes = 10; mode = 'flag'; title = 'Smoke run' } + $room)
-  Check 'lecturer starts a session' ($r -like 'STARTED:*') "$r  (BAD_LECTURER = type the ID and PIN exactly as they are in the Lecturers tab)"
+  $info = (Invoke-WebRequest "$Url`?s=$id" -UseBasicParsing).Content | ConvertFrom-Json
+  Check 'student page can read the session name' ($info.open -and $info.name -eq 'SMOKE test') ($info | ConvertTo-Json -Compress)
 
-  $t = ((Invoke-WebRequest "$Url`?course=SMOKE" -UseBasicParsing).Content | ConvertFrom-Json).title
-  Check 'student page can read the lecturer title' ($t -eq 'Smoke run') $t
-
-  $scan = @{ course = 'SMOKE'; student_no = 'SMOKE/001'; pin = '1234'; name = 'Smoke Test'; device_id = 'smoke-device'; accuracy = 10; lat = 0.3476; lng = 32.5825 }
-  $r = Call $scan
-  Check 'new student registers and signs in' (@('OK', 'ALREADY_MARKED') -contains $r) $r
-  $r = Call $scan
-  Check 'second scan is refused as already marked' ($r -eq 'ALREADY_MARKED') $r
+  $scan = @{ session_id = $id; pin = '0482'; reg_no = 'SMOKE/001'; name = 'Smoke Alice'; device_id = 'smoke-1' }
   $bad = $scan.Clone(); $bad.pin = '9999'
-  $r = Call $bad
-  Check 'wrong PIN is refused' ($r -eq 'BAD_PIN') $r
+  $r = Call $bad;  Check 'wrong PIN is refused' ($r -eq 'BAD_PIN') $r
+  $r = Call $scan; Check 'right PIN signs in (PIN starting with 0 works)' ($r -eq 'OK') $r
+  $r = Call $scan; Check 'second sign-in is refused as already signed in' ($r -eq 'ALREADY_MARKED') $r
 
-  $zero = $scan.Clone(); $zero.student_no = 'SMOKE/002'; $zero.name = 'Zero Pin'; $zero.pin = '0123'; $zero.device_id = 'smoke-device-2'
-  $r = Call $zero
-  Check 'PIN starting with 0 registers' (@('OK', 'ALREADY_MARKED') -contains $r) $r
-  $r = Call $zero
-  Check 'PIN starting with 0 is accepted again (not BAD_PIN)' ($r -eq 'ALREADY_MARKED') $r
+  $r = Call (@{ action = 'manual'; lines = @("SMOKE/900`tSmoke Zed", "Smoke Amy`tSMOKE/910") } + $host_)
+  Check 'add by hand (pasted rows) merges' ($r -eq 'ADDED:2') $r
 
-  $today = (Get-Date).ToUniversalTime().AddHours(3).ToString('yyyy-MM-dd')
-  $r = Call @{ action = 'list'; lecturer_id = $LecturerId; pin = $Pin; course = 'SMOKE'; date = $today }
+  $r = Call (@{ action = 'list' } + $host_)
   $list = $r | ConvertFrom-Json
-  Check 'lecturer list shows both students' ($list.found -and (@($list.rows).Count -ge 2)) $r
-  Check 'lecturer list carries the title' ($list.title -eq 'Smoke run') $list.title
+  Check 'lecturer list shows all 3 people' (@($list.rows).Count -eq 3) $r
+
+  $r = Call @{ action = 'list'; session_id = $id; host_key = 'wrong-key' }
+  Check 'list is refused without the private key' ($r -eq 'BAD_SESSION') $r
+
+  $r = Call (@{ action = 'end' } + $host_)
+  Check 'lecturer ends the session' ($r -eq 'OK') $r
+  $scan2 = $scan.Clone(); $scan2.reg_no = 'SMOKE/002'; $scan2.name = 'Smoke Late'; $scan2.device_id = 'smoke-2'
+  $r = Call $scan2; Check 'sign-in is refused after the session ended' ($r -eq 'NO_OPEN_SESSION') $r
 } catch {
   Write-Host "ERROR: $($_.Exception.Message)" -ForegroundColor Red
   $script:fail++
