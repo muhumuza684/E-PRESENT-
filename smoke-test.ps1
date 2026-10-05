@@ -2,7 +2,7 @@
 # Creates a test course "SMOKE" and test students "SMOKE/001", "SMOKE/002" (delete those rows afterwards).
 param([string]$Url, [string]$LecturerId, [string]$Pin, [string]$Email)
 $script:fail = 0
-function Call($o) { ([string](Invoke-RestMethod -Method Post -Uri $Url -ContentType 'text/plain' -Body ($o | ConvertTo-Json -Compress))).Trim() }
+function Call($o) { (Invoke-WebRequest -Method Post -Uri $Url -ContentType 'text/plain' -Body ($o | ConvertTo-Json -Compress) -UseBasicParsing).Content.Trim() }
 function Check($name, $ok, $got) {
   if ($ok) { Write-Host "PASS  $name" -ForegroundColor Green }
   else { Write-Host "FAIL  $name   (got: $got)" -ForegroundColor Red; $script:fail++ }
@@ -44,3 +44,4 @@ try {
 Write-Host ""
 if ($script:fail -eq 0) { Write-Host "ALL CHECKS PASSED" -ForegroundColor Green; exit 0 }
 else { Write-Host "$($script:fail) CHECK(S) FAILED" -ForegroundColor Red; exit 1 }
+
