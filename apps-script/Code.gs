@@ -12,10 +12,19 @@ const TABS_ = {
   Sessions: ['session_id', 'course', 'lat', 'lng', 'radius', 'closes_at', 'is_open', 'mode'],
   Attendance: ['session_id', 'student_no', 'name', 'device_id', 'time', 'status', 'distance', 'reason']
 };
+// Writes one row as plain text, so PINs and Reg Nos like 0123 keep their leading zero.
+function putRow_(name, row) {
+  const sh = sheet_(name);
+  sh.getRange(sh.getLastRow() + 1, 1, 1, row.length).setNumberFormat('@').setValues([row]);
+}
+
 function ensureTabs_() {
   const cache = CacheService.getScriptCache();
-  if (cache.get('tabs_ok')) return;
+  if (cache.get('tabs_v2')) return;
   const ss = SpreadsheetApp.getActive();
+  // Dates read back wrong (hours off) if the Sheet's timezone differs from the script's, which
+  // breaks session expiry. Keep them identical.
+  ss.setSpreadsheetTimeZone(Session.getScriptTimeZone());
   Object.keys(TABS_).forEach(n => {
     if (ss.getSheetByName(n)) return;
     const sh = ss.insertSheet(n);
@@ -25,7 +34,7 @@ function ensureTabs_() {
   });
   const def = ss.getSheetByName('Sheet1');
   if (def && ss.getSheets().length > 1 && def.getLastRow() === 0) ss.deleteSheet(def);
-  cache.put('tabs_ok', '1', 21600);
+  cache.put('tabs_v2', '1', 21600);
 }
 
 // First-time setup: creates the first lecturer, and only while the Lecturers tab is empty.
@@ -33,7 +42,7 @@ function init_(d) {
   if (rows_('Lecturers').some(r => String(r[0]).trim())) return 'ALREADY_SETUP';
   const id = String(d.lecturer_id || '').trim(), pin = String(d.pin || '').trim(), email = String(d.email || '').trim();
   if (!id || !pin || /^[=+\-@]/.test(id) || /^[=+\-@]/.test(email)) return 'BAD_INPUT';
-  sheet_('Lecturers').appendRow([id, pin, email]);
+  putRow_('Lecturers', [id, pin, email]);
   return 'READY';
 }
 
@@ -83,7 +92,7 @@ function scan_(d) {
     if (!/^\d{4}$/.test(pin)) return 'BAD_NEW_PIN';
     if (no.length < 3 || no.length > 40 || /^[=+\-@]/.test(no)) return 'NOT_REGISTERED';
     st = [no, name, pin];
-    sheet_('Students').appendRow(st);
+    putRow_('Students', st);
   }
 
   const cache = CacheService.getScriptCache(), key = 'fail:' + no;
