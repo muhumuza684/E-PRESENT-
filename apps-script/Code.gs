@@ -1,13 +1,50 @@
 const TZ = 'Africa/Kampala';
 
-function doGet() { return ContentService.createTextOutput('E-Presence is running'); }
+function doGet() {
+  try { ensureTabs_(); } catch (err) { return ContentService.createTextOutput('E-Presence is running, but tabs could not be created: ' + err); }
+  return ContentService.createTextOutput('E-Presence is running');
+}
+
+// Creates any missing tab with its headers. Never clears or overwrites existing data.
+const TABS_ = {
+  Lecturers: ['lecturer_id', 'pin', 'email'],
+  Students: ['student_no', 'name', 'pin'],
+  Sessions: ['session_id', 'course', 'lat', 'lng', 'radius', 'closes_at', 'is_open', 'mode'],
+  Attendance: ['session_id', 'student_no', 'name', 'device_id', 'time', 'status', 'distance', 'reason']
+};
+function ensureTabs_() {
+  const cache = CacheService.getScriptCache();
+  if (cache.get('tabs_ok')) return;
+  const ss = SpreadsheetApp.getActive();
+  Object.keys(TABS_).forEach(n => {
+    if (ss.getSheetByName(n)) return;
+    const sh = ss.insertSheet(n);
+    if (n === 'Lecturers' || n === 'Students') sh.getRange('A:C').setNumberFormat('@');
+    sh.getRange(1, 1, 1, TABS_[n].length).setValues([TABS_[n]]);
+    sh.setFrozenRows(1);
+  });
+  const def = ss.getSheetByName('Sheet1');
+  if (def && ss.getSheets().length > 1 && def.getLastRow() === 0) ss.deleteSheet(def);
+  cache.put('tabs_ok', '1', 21600);
+}
+
+// First-time setup: creates the first lecturer, and only while the Lecturers tab is empty.
+function init_(d) {
+  if (rows_('Lecturers').some(r => String(r[0]).trim())) return 'ALREADY_SETUP';
+  const id = String(d.lecturer_id || '').trim(), pin = String(d.pin || '').trim(), email = String(d.email || '').trim();
+  if (!id || !pin || /^[=+\-@]/.test(id) || /^[=+\-@]/.test(email)) return 'BAD_INPUT';
+  sheet_('Lecturers').appendRow([id, pin, email]);
+  return 'READY';
+}
 
 function doPost(e) {
   const out = t => ContentService.createTextOutput(t);
   const lock = LockService.getScriptLock();
   try {
     lock.waitLock(20000);
+    ensureTabs_();
     const d = JSON.parse(e.postData.contents);
+    if (d.action === 'init') return out(init_(d));
     if (d.action === 'start') return out(start_(d));
     if (d.action === 'manual') return out(manual_(d));
     if (d.action === 'list') return out(list_(d));
@@ -172,22 +209,5 @@ function email_(d) {
   return 'SENT';
 }
 
-function setupSheets() {
-  const ss = SpreadsheetApp.getActive();
-  const tabs = {
-    Lecturers: [['lecturer_id', 'pin', 'email'], ['L001', '1234', 'you@example.com']],
-    Students: [['student_no', 'name', 'pin'], ['2024/BSE/001/PS', 'Test Student', '1111']],
-    Sessions: [['session_id', 'course', 'lat', 'lng', 'radius', 'closes_at', 'is_open', 'mode']],
-    Attendance: [['session_id', 'student_no', 'name', 'device_id', 'time', 'status', 'distance', 'reason']]
-  };
-  Object.keys(tabs).forEach(n => {
-    const sh = ss.getSheetByName(n) || ss.insertSheet(n);
-    sh.clear();
-    const v = tabs[n];
-    if (n === 'Lecturers' || n === 'Students') sh.getRange('A:C').setNumberFormat('@');
-    sh.getRange(1, 1, v.length, v[0].length).setValues(v);
-    sh.setFrozenRows(1);
-  });
-  const def = ss.getSheetByName('Sheet1');
-  if (def && ss.getSheets().length > 1) ss.deleteSheet(def);
-}
+// Kept for the Apps Script editor: creates any missing tabs (never erases data).
+function setupSheets() { ensureTabs_(); }
