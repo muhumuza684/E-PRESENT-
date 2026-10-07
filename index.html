@@ -28,6 +28,7 @@
 <main>
   <header class="brand"><div class="logo">E</div><div><b>E-Presence</b><span>BrytMa Tech Uganda</span></div></header>
   <h1 id="ttl">Sign in</h1>
+  <div id="sub" style="color:#444;margin-bottom:4px"></div>
   <div id="loading" style="color:#555;margin-top:12px">Loading...</div>
   <div id="form" style="display:none">
     <label id="regbox">Registration number (Reg No)<input id="reg" autocomplete="off" placeholder="e.g. 2024/BSE/108/PS"></label>
@@ -37,12 +38,14 @@
   </div>
   <div id="done"><div class="tick">&#10003;</div><h2 id="donetxt">You are signed in</h2><p id="donesub" style="color:#444"></p></div>
   <div id="msg"></div>
+  <button id="again" style="display:none;background:#fff;color:#0b5cad;border:2px solid #0b5cad">Check again</button>
 </main>
 <p class="foot">Built in Uganda by BrytMa Tech Uganda</p>
 <script>
 const URL_ = 'https://script.google.com/macros/s/AKfycbxrvdQluH9CZ-FB8zzxQ3RUgnOSw2zYmo1kqXT61VZMAhpSZnTgpTrrUKTLdnw9PaspEw/exec';
 const $ = id => document.getElementById(id);
-const sid = new URLSearchParams(location.search).get('s');
+const qs = new URLSearchParams(location.search), cid = qs.get('class'), sid = qs.get('s');
+const target = cid ? { class_id: cid } : { session_id: sid };
 let info = null;
 
 function show(t, c) { const m = $('msg'); m.textContent = t; m.className = c; m.style.display = 'block'; }
@@ -59,7 +62,7 @@ async function post(body) {
 
 const MSG = {
   BAD_PIN: ['Wrong PIN. Check the PIN on your lecturer\'s screen.', 'err'],
-  NO_OPEN_SESSION: ['This sign-in is closed. Ask your lecturer.', 'err'],
+  NO_OPEN_SESSION: ['Sign-in is not open right now. Ask your lecturer.', 'warn'],
   MISSING_INFO: ['Please fill in every box.', 'err'],
   TOO_MANY: ['Too many wrong tries. Wait 5 minutes and try again.', 'err']
 };
@@ -69,27 +72,30 @@ const DONE = {
   ALREADY_MARKED: ['You are already signed in', 'Nothing more to do.']
 };
 
-(async () => {
-  if (!sid) { $('loading').style.display = 'none'; return show('This link is incomplete. Scan the QR code again.', 'err'); }
-  try { info = JSON.parse(await (await fetch(URL_ + '?s=' + encodeURIComponent(sid))).text()); }
-  catch (e) { $('loading').style.display = 'none'; return show('No connection. Check your data and reload.', 'err'); }
+async function init() {
+  $('msg').style.display = 'none'; $('again').style.display = 'none'; $('form').style.display = 'none'; $('loading').style.display = 'block';
+  if (!cid && !sid) { $('loading').style.display = 'none'; return show('This link is incomplete. Scan the QR code again.', 'err'); }
+  try { info = JSON.parse(await (await fetch(URL_ + '?' + (cid ? 'class=' + encodeURIComponent(cid) : 's=' + encodeURIComponent(sid)))).text()); }
+  catch (e) { $('loading').style.display = 'none'; $('again').style.display = 'block'; return show('No connection. Check your data and try again.', 'err'); }
   $('loading').style.display = 'none';
-  if (!info.open) return show('This sign-in is closed. Ask your lecturer.', 'err');
-  $('ttl').textContent = info.name;
-  document.title = info.name + ' | E-Presence';
-  if (!info.ask_regno) $('regbox').style.display = 'none';
+  if (info.name) { $('ttl').textContent = info.name; document.title = info.name + ' | E-Presence'; }
+  $('sub').textContent = info.title || '';
+  if (!info.open) { $('again').style.display = 'block'; return show('Sign-in is not open right now. Ask your lecturer, then tap Check again.', 'warn'); }
+  $('regbox').style.display = info.ask_regno ? 'block' : 'none';
   $('reg').value = localStorage.getItem('last_reg') || '';
   $('name').value = localStorage.getItem('last_name') || '';
   $('form').style.display = 'block';
-  ($('reg').value && $('name').value ? $('pin') : $('reg').offsetParent ? $('reg') : $('name')).focus();
-})();
+  ($('reg').value && $('name').value ? $('pin') : info.ask_regno ? $('reg') : $('name')).focus();
+}
+$('again').onclick = init;
+init();
 
 $('go').onclick = async () => {
   const reg = $('reg').value.trim(), name = $('name').value.trim(), pin = $('pin').value.trim();
   if ((info.ask_regno && !reg) || !name || !pin) return show(MSG.MISSING_INFO[0], 'err');
   $('go').disabled = true; $('msg').style.display = 'none';
   let res;
-  try { res = await post({ session_id: sid, pin, reg_no: reg, name, device_id: deviceId() }); }
+  try { res = await post({ ...target, pin, reg_no: reg, name, device_id: deviceId() }); }
   catch (e) { $('go').disabled = false; return show('No connection. Check your data and try again.', 'err'); }
   $('go').disabled = false;
   if (DONE[res]) {

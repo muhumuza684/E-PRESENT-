@@ -7,32 +7,40 @@
 <style>
   *{box-sizing:border-box}
   body{font-family:system-ui,sans-serif;margin:0;background:#f4f6f8;color:#111;min-height:100vh;display:flex;flex-direction:column}
-  main{width:100%;max-width:460px;margin:0 auto;padding:16px;flex:1}
-  .brand{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+  main{width:100%;max-width:460px;margin:0 auto;padding:14px;flex:1}
+  .brand{display:flex;align-items:center;gap:10px;margin-bottom:6px}
   .logo{background:#0b5cad;color:#fff;width:38px;height:38px;border-radius:9px;display:grid;place-items:center;font-weight:800;font-size:1.2rem}
   .brand b{display:block;font-size:1.1rem}.brand span{font-size:.75rem;color:#555}
   h1{font-size:1.3rem;margin:8px 0}
-  label{display:block;margin-top:10px;font-weight:600;font-size:.9rem}
-  input[type=text],input[type=email],textarea{width:100%;font-size:16px;padding:12px;margin-top:4px;border:2px solid #8a8f98;border-radius:10px;background:#fff;font-family:inherit}
-  .chk{display:flex;gap:8px;align-items:center;font-weight:500;margin-top:12px}.chk input{width:20px;height:20px}
-  button{width:100%;font-size:1.05rem;padding:13px;margin-top:12px;border:0;border-radius:10px;background:#0b5cad;color:#fff;font-weight:700}
+  label{display:block;margin-top:8px;font-weight:600;font-size:.85rem}
+  input[type=text],input[type=email],textarea,select{width:100%;font-size:16px;padding:11px;margin-top:4px;border:2px solid #8a8f98;border-radius:10px;background:#fff;font-family:inherit}
+  select#clssel{font-size:1.2rem;font-weight:700;border-color:#0b5cad}
+  .chk{display:flex;gap:8px;align-items:center;font-weight:500;margin-top:12px;font-size:.95rem}.chk input{width:20px;height:20px}
+  button{width:100%;font-size:1.05rem;padding:12px;margin-top:10px;border:0;border-radius:10px;background:#0b5cad;color:#fff;font-weight:700}
   button.sec{background:#fff;color:#0b5cad;border:2px solid #0b5cad}
   button.red{background:#b42318}
-  button.link{background:none;color:#0b5cad;font-weight:600;padding:8px;margin-top:4px;font-size:.9rem}
-  .row{display:flex;gap:8px}.row button{margin-top:12px}
+  button.link{background:none;color:#0b5cad;font-weight:600;padding:6px;margin-top:2px;font-size:.88rem}
+  .row,.two{display:flex;gap:8px}.row button{margin-top:10px}.two label{flex:1}
   .msg{margin-top:10px;padding:10px;border-radius:10px;font-weight:600;display:none;font-size:.95rem}
   .ok{background:#d6f5dc;color:#0a5c1f}.err{background:#fde0e0;color:#8a1111}
-  #pinbox{text-align:center;background:#fff;border:2px solid #0b5cad;border-radius:14px;padding:8px;margin-top:8px}
-  #pinbox small{color:#555;display:block}#pinval{font-size:3rem;font-weight:800;letter-spacing:.35rem;line-height:1.1;word-break:break-all}
-  #qr{display:flex;justify-content:center;margin:12px 0 4px}#qr img,#qr canvas{max-width:100%}
-  .count{text-align:center;font-weight:700;font-size:1.1rem;margin-top:6px}
-  .scroll{max-height:36vh;overflow:auto;background:#fff;border-radius:10px;margin-top:8px}
+  #qrcard{background:#fff;border-radius:14px;padding:10px;margin-top:8px;text-align:center}
+  #qr{display:flex;justify-content:center}#qr img,#qr canvas{max-width:100%}
+  #qrcap{font-size:.82rem;color:#555;margin-top:2px}
+  #pinbox{text-align:center;background:#fff;border:2px solid #0b5cad;border-radius:14px;padding:6px;margin-top:10px}
+  #pinbox small{color:#555;display:block}#pinval{font-size:2.6rem;font-weight:800;letter-spacing:.3rem;line-height:1.1;word-break:break-all}
+  .count{text-align:center;font-weight:700;margin-top:6px}
+  .scroll{max-height:34vh;overflow:auto;background:#fff;border-radius:10px;margin-top:8px}
   table{width:100%;border-collapse:collapse;font-size:.95rem}td,th{padding:7px 8px;border-bottom:1px solid #e3e3e3;text-align:left}
   details{margin-top:10px;background:#fff;border-radius:10px;padding:8px 10px}summary{font-weight:600;cursor:pointer}
   .foot{font-size:.75rem;color:#666;text-align:center;padding:10px}
   .pbrand{display:none;text-align:center;font-size:.8rem;color:#555;margin-top:12px}
+  #poster{display:none;text-align:center;padding:20px}
+  #poster .big{width:64px;height:64px;font-size:2.2rem;margin:0 auto 10px}
+  #poster h1{font-size:2.2rem;margin:6px 0 14px}#poster #pq{display:flex;justify-content:center}
+  #poster p{font-size:1.2rem;margin:16px 0 4px}
   @media print{
-    main>*{display:none}body.pl #listbox{display:block}.noprint{display:none!important}.scroll{max-height:none;overflow:visible}.pbrand{display:block}.foot{display:none}
+    main>*{display:none}body.pl #listbox{display:block}body.pp #poster{display:block}
+    .noprint{display:none!important}.scroll{max-height:none;overflow:visible}.pbrand{display:block}.foot{display:none}
   }
 </style>
 </head>
@@ -40,39 +48,65 @@
 <main>
   <header class="brand"><div class="logo">E</div><div><b>E-Presence</b><span>BrytMa Tech Uganda</span></div></header>
 
-  <section id="setup">
-    <h1>New sign-in</h1>
-    <label>Session name<input id="sname" type="text" placeholder="e.g. CSC2101 Week 5 lecture" maxlength="80"></label>
-    <label>PIN students must type<input id="spin" type="text" maxlength="10" autocomplete="off"></label>
-    <label>Email me the list (optional)<input id="email" type="email" placeholder="you@university.ac.ug"></label>
+  <section id="create" style="display:none">
+    <h1>Create your class</h1>
+    <label>Class name<input id="cname" type="text" placeholder="e.g. CSC2101 Semester 1" maxlength="60"></label>
+    <label>Email me the lists (optional)<input id="email" type="email" placeholder="you@university.ac.ug"></label>
     <label class="chk"><input id="askreg" type="checkbox" checked>Students also type a Reg No</label>
-    <button id="start">Start sign-in</button>
+    <button id="mkclass">Create class and QR code</button>
+    <button class="link" id="cancelcreate">Cancel</button>
     <div id="m1" class="msg"></div>
+    <p style="font-size:.85rem;color:#555">You get a QR code that never changes. Print it once, then just start and end sign-in whenever you teach.</p>
   </section>
 
-  <section id="live" style="display:none">
-    <h1 id="lname"></h1>
-    <div id="pinbox"><small id="pinlabel">Students enter this PIN</small><div id="pinval"></div></div>
-    <div id="qrwrap"><div id="qr"></div><div style="text-align:center;font-size:.85rem;color:#555">Students scan this QR code</div></div>
-    <div class="count" id="count"></div>
-    <div class="row"><button class="sec" id="viewlist">List &amp; export</button><button class="sec" id="chpin">Change PIN</button></div>
-    <div class="row"><button class="red" id="end">End sign-in</button><button class="sec" id="newsess">New session</button></div>
+  <section id="cls" style="display:none">
+    <select id="clssel"></select>
+    <div id="qrcard">
+      <div id="qr"></div>
+      <div id="qrcap"></div>
+      <div class="row"><button class="sec" id="printqr">Print QR</button></div>
+      <button class="link" id="qrmode"></button>
+    </div>
+    <div id="closedbox">
+      <div class="two">
+        <label>Session name (optional)<input id="stitle" type="text" placeholder="e.g. Week 6" maxlength="60"></label>
+        <label style="max-width:34%">PIN<input id="spin" type="text" maxlength="10" autocomplete="off"></label>
+      </div>
+      <button id="start">Start sign-in</button>
+    </div>
+    <div id="openbox" style="display:none">
+      <div id="pinbox"><small id="otitle"></small><div id="pinval"></div></div>
+      <div class="count" id="count"></div>
+      <div class="row"><button class="sec" id="chpin">Change PIN</button><button class="red" id="end">End sign-in</button></div>
+    </div>
+    <button class="sec" id="viewlist">Lists &amp; export</button>
+    <div id="m3" class="msg"></div>
   </section>
 
   <section id="listbox" style="display:none">
     <h1 id="ptitle"></h1>
+    <div class="noprint"><select id="sessel"></select></div>
     <div class="scroll"><table id="tbl"></table></div>
     <div class="pbrand">E-Presence by BrytMa Tech Uganda</div>
     <div class="noprint">
       <div class="row"><button id="csv">Download CSV</button><button id="pdf">Save as PDF</button></div>
-      <button class="sec" id="mail">Email me the list</button>
+      <div class="row"><button class="sec" id="mail">Email me this list</button><button class="sec" id="sem">Whole semester</button></div>
       <details><summary>Add someone by hand</summary>
         <textarea id="paste" rows="4" placeholder="Paste from Google Sheets: Reg No and Name, one person per row"></textarea>
-        <button id="addbtn">Add to list</button>
+        <button id="addbtn">Add to this list</button>
       </details>
       <div id="m2" class="msg"></div>
       <button class="link" id="back">&larr; Back</button>
     </div>
+  </section>
+
+  <section id="poster">
+    <div class="logo big">E</div>
+    <h1 id="pname"></h1>
+    <div id="pq"></div>
+    <p><b>Scan to sign in</b></p>
+    <p style="font-size:1rem">Enter your Reg No, your name and the PIN your lecturer shows.</p>
+    <p style="font-size:.85rem;color:#555">E-Presence &middot; Built in Uganda by BrytMa Tech Uganda</p>
   </section>
 </main>
 <p class="foot">Built in Uganda by BrytMa Tech Uganda</p>
@@ -80,118 +114,172 @@
 <script>
 const URL_ = 'https://script.google.com/macros/s/AKfycbxrvdQluH9CZ-FB8zzxQ3RUgnOSw2zYmo1kqXT61VZMAhpSZnTgpTrrUKTLdnw9PaspEw/exec';
 const $ = id => document.getElementById(id);
-const ls = { get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} }, del: k => { try { localStorage.removeItem(k); } catch (e) {} } };
-let S = null, timer = null, rep = null;
+const ls = { get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} } };
+let classes = [], cur = null, timer = null, rep = null, qrMode = 'class', lastLive = null, wasOpen = null;
 
 const post = b => fetch(URL_, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(b) }).then(r => r.text()).then(t => t.trim());
-function note(id, text, ok) { const m = $(id); m.textContent = text; m.className = 'msg ' + (ok ? 'ok' : 'err'); m.style.display = 'block'; }
-function view(name) { ['setup', 'live', 'listbox'].forEach(s => $(s).style.display = s === name ? 'block' : 'none'); }
+const auth = () => ({ class_id: cur.id, host_key: cur.key });
+const base = () => location.href.replace(/lecturer\.html.*$/, '');
+const classLink = () => base() + 'index.html?class=' + cur.id;
+const sessionLink = id => base() + 'index.html?s=' + id;
 const randPin = () => String(Math.floor(1000 + Math.random() * 9000));
 const PINOK = p => /^[A-Za-z0-9]{3,10}$/.test(p);
-const studentLink = () => location.href.replace(/lecturer\.html.*$/, '') + 'index.html?s=' + S.session_id;
+function note(id, text, ok) { const m = $(id); m.textContent = text; m.className = 'msg ' + (ok ? 'ok' : 'err'); m.style.display = 'block'; }
+function view(name) { ['create', 'cls', 'listbox'].forEach(s => $(s).style.display = s === name ? 'block' : 'none'); }
+function saveClasses() { ls.set('ep_classes', JSON.stringify(classes)); ls.set('ep_current', cur ? cur.id : ''); }
+function drawQR(el, text, size) {
+  if (el.dataset.t === text) return;
+  el.dataset.t = text; el.innerHTML = '';
+  new QRCode(el, { text, width: size, height: size });
+}
 
-function showSetup() {
-  clearInterval(timer); view('setup');
-  $('spin').value = randPin(); $('email').value = ls.get('ep_email') || '';
+function showCreate() {
+  clearInterval(timer); view('create');
+  $('email').value = ls.get('ep_email') || ''; $('cancelcreate').style.display = classes.length ? 'block' : 'none';
+}
+$('cancelcreate').onclick = () => showClass();
+$('mkclass').onclick = async () => {
+  const name = $('cname').value.trim(), email = $('email').value.trim();
+  if (!name) return note('m1', 'Give the class a name.', false);
+  $('mkclass').disabled = true;
+  try {
+    const r = await post({ action: 'newclass', name, email, ask_regno: $('askreg').checked });
+    if (r.startsWith('{')) {
+      const j = JSON.parse(r); cur = { id: j.class_id, key: j.host_key, name };
+      classes.push(cur); if (email) ls.set('ep_email', email); saveClasses(); $('cname').value = ''; showClass();
+    } else note('m1', r === 'BUSY' ? 'Too many classes created. Try again later.' : 'Could not create the class. Try again.', false);
+  } catch (e) { note('m1', 'No connection. Check your data and try again.', false); }
+  $('mkclass').disabled = false;
+};
+
+function showClass() {
+  view('cls'); qrMode = 'class'; wasOpen = null; $('m3').style.display = 'none';
+  const sel = $('clssel'); sel.innerHTML = '';
+  classes.forEach(c => { const o = document.createElement('option'); o.value = c.id; o.textContent = c.name; sel.appendChild(o); });
+  const n = document.createElement('option'); n.value = '__new'; n.textContent = '+ New class'; sel.appendChild(n);
+  sel.value = cur.id; $('qr').dataset.t = '';
+  poll(); clearInterval(timer); timer = setInterval(poll, 5000);
+}
+$('clssel').onchange = () => {
+  const v = $('clssel').value;
+  if (v === '__new') { $('clssel').value = cur.id; return showCreate(); }
+  cur = classes.find(c => c.id === v); saveClasses(); showClass();
+};
+
+async function poll() {
+  if (!cur) return;
+  let r; try { r = await post({ action: 'live', ...auth() }); } catch (e) { return; }
+  if (r === 'BAD_SESSION') {
+    classes = classes.filter(c => c.id !== cur.id); cur = classes[0] || null; saveClasses();
+    return cur ? showClass() : showCreate();
+  }
+  if (!r.startsWith('{')) return;
+  const j = JSON.parse(r); lastLive = j;
+  if (!j.open) qrMode = 'class';
+  const one = j.open && qrMode === 'session';
+  drawQR($('qr'), one ? sessionLink(j.session_id) : classLink(), 170);
+  $('qrcap').textContent = one ? 'One-time QR: works for this session only.' : 'This QR stays the same all semester. Print it once.';
+  $('qrmode').style.display = j.open ? 'block' : 'none';
+  $('qrmode').textContent = one ? 'Use the same QR all semester' : 'Use a one-time QR for this session instead';
+  $('openbox').style.display = j.open ? 'block' : 'none';
+  $('closedbox').style.display = j.open ? 'none' : 'block';
+  if (j.open) {
+    $('pinval').textContent = j.pin; $('otitle').textContent = 'Students enter this PIN' + (j.title ? ' (' + j.title + ')' : '');
+    $('count').textContent = j.count + ' signed in' + (j.flagged ? ' (' + j.flagged + ' to check)' : '');
+  } else if (wasOpen !== false) $('spin').value = randPin();
+  wasOpen = j.open;
 }
 
 $('start').onclick = async () => {
-  const name = $('sname').value.trim(), pin = $('spin').value.trim(), email = $('email').value.trim();
-  if (!name) return note('m1', 'Give the session a name.', false);
-  if (!PINOK(pin)) return note('m1', 'The PIN needs 3 to 10 letters or numbers.', false);
-  $('start').disabled = true;
+  const pin = $('spin').value.trim();
+  if (!PINOK(pin)) return note('m3', 'The PIN needs 3 to 10 letters or numbers.', false);
+  $('start').disabled = true; $('m3').style.display = 'none';
   try {
-    const r = await post({ action: 'start', name, pin, email, ask_regno: $('askreg').checked });
-    if (r.startsWith('{')) { S = JSON.parse(r); ls.set('ep_session', JSON.stringify(S)); if (email) ls.set('ep_email', email); showLive(true); }
-    else note('m1', r === 'BUSY' ? 'Too many sessions started. Try again later.' : 'Could not start. Try again.', false);
-  } catch (e) { note('m1', 'No connection. Check your data and try again.', false); }
+    const r = await post({ action: 'start', ...auth(), pin, title: $('stitle').value.trim() });
+    if (r.startsWith('{')) { $('stitle').value = ''; await poll(); } else note('m3', 'Could not start. Try again.', false);
+  } catch (e) { note('m3', 'No connection. Check your data and try again.', false); }
   $('start').disabled = false;
 };
-
-function showLive(fresh) {
-  view('live');
-  if (fresh) { $('qr').innerHTML = ''; new QRCode($('qr'), { text: studentLink(), width: 190, height: 190 }); }
-  poll(); clearInterval(timer); timer = setInterval(poll, 5000);
-}
-
-async function poll() {
-  let r;
-  try { r = await post({ action: 'live', ...S }); } catch (e) { return; }
-  if (r === 'BAD_SESSION') { ls.del('ep_session'); S = null; return showSetup(); }
-  if (!r.startsWith('{')) return;
-  const j = JSON.parse(r);
-  $('lname').textContent = j.name;
-  $('pinval').textContent = j.open ? j.pin : 'Closed';
-  $('pinlabel').textContent = j.open ? 'Students enter this PIN' : 'Sign-in has ended';
-  $('qrwrap').style.display = j.open ? 'block' : 'none';
-  $('chpin').style.display = $('end').style.display = j.open ? 'block' : 'none';
-  $('count').textContent = j.count + ' signed in' + (j.flagged ? ' (' + j.flagged + ' to check)' : '');
-  S.pin = j.pin; S.name = j.name;
-  if (!$('qr').firstChild && j.open) new QRCode($('qr'), { text: studentLink(), width: 190, height: 190 });
-}
-
 $('chpin').onclick = async () => {
-  const p = (prompt('New PIN (3 to 10 letters or numbers)', S.pin || '') || '').trim();
+  const p = (prompt('New PIN (3 to 10 letters or numbers)', lastLive ? lastLive.pin : '') || '').trim();
   if (!p) return;
   if (!PINOK(p)) return alert('The PIN needs 3 to 10 letters or numbers.');
-  await post({ action: 'setpin', ...S, pin: p }); poll();
+  await post({ action: 'setpin', ...auth(), pin: p }); poll();
 };
 $('end').onclick = async () => {
   if (!confirm('End sign-in? Students will no longer be able to sign in.')) return;
-  await post({ action: 'end', ...S }); poll();
+  await post({ action: 'end', ...auth() }); poll();
 };
-$('newsess').onclick = () => { if (!$('end').offsetParent || confirm('Start a new session? This one stays open until you end it.')) { ls.del('ep_session'); S = null; showSetup(); } };
+$('qrmode').onclick = () => { qrMode = qrMode === 'class' ? 'session' : 'class'; poll(); };
+$('printqr').onclick = () => {
+  const one = lastLive && lastLive.open && qrMode === 'session';
+  $('pname').textContent = cur.name; $('pq').innerHTML = '';
+  new QRCode($('pq'), { text: one ? sessionLink(lastLive.session_id) : classLink(), width: 300, height: 300 });
+  document.body.classList.add('pp'); window.print(); document.body.classList.remove('pp');
+};
 
 const cell = (tr, t) => { const c = document.createElement('td'); c.textContent = t; tr.appendChild(c); };
-async function loadList() {
-  const r = await post({ action: 'list', ...S });
+async function loadList(sid) {
+  const r = await post({ action: 'list', ...auth(), session_id: sid || '' });
   if (!r.startsWith('{')) return note('m2', 'Could not load the list. Try again.', false);
   rep = JSON.parse(r);
-  const hasReg = rep.rows.some(x => x.reg);
-  $('ptitle').textContent = rep.name + ', ' + rep.date + ' (' + rep.rows.length + ')';
+  const sel = $('sessel'); sel.innerHTML = '';
+  rep.sessions.forEach(s => { const o = document.createElement('option'); o.value = s.id; o.textContent = s.date + ' ' + s.time + (s.name.indexOf(rep.class_name + ' - ') === 0 ? ' - ' + s.name.slice(rep.class_name.length + 3) : '') + ' (' + s.count + ')'; sel.appendChild(o); });
+  if (rep.session_id) sel.value = rep.session_id;
+  rep.hasReg = rep.rows.some(x => x.reg);
+  $('ptitle').textContent = rep.sessions.length ? rep.name + ', ' + rep.date + ' (' + rep.rows.length + ')' : rep.class_name + ': no sessions yet';
   const t = $('tbl'); t.innerHTML = '';
   const h = document.createElement('tr');
-  (hasReg ? ['Reg No', 'Name', 'Time', ''] : ['Name', 'Time', '']).forEach(x => { const th = document.createElement('th'); th.textContent = x; h.appendChild(th); });
+  (rep.hasReg ? ['Reg No', 'Name', 'Time', ''] : ['Name', 'Time', '']).forEach(x => { const th = document.createElement('th'); th.textContent = x; h.appendChild(th); });
   t.appendChild(h);
   rep.rows.forEach(x => {
     const tr = document.createElement('tr');
-    if (hasReg) cell(tr, x.reg);
+    if (rep.hasReg) cell(tr, x.reg);
     cell(tr, x.name); cell(tr, x.time); cell(tr, x.status === 'FLAGGED' ? 'CHECK' : x.status === 'MANUAL' ? 'added' : '');
     t.appendChild(tr);
   });
-  rep.hasReg = hasReg;
 }
-$('viewlist').onclick = async () => { view('listbox'); $('m2').style.display = 'none'; await loadList(); };
-$('back').onclick = () => showLive(false);
+$('viewlist').onclick = async () => { view('listbox'); $('m2').style.display = 'none'; await loadList(''); };
+$('sessel').onchange = () => loadList($('sessel').value);
+$('back').onclick = () => showClass();
 
 const q = v => { v = String(v == null ? '' : v); if (/^[=+\-@]/.test(v)) v = "'" + v; return '"' + v.replace(/"/g, '""') + '"'; };
-$('csv').onclick = () => {
-  const head = rep.hasReg ? ['Reg No', 'Name', 'Time', 'Status'] : ['Name', 'Time', 'Status'];
-  const rows = [head].concat(rep.rows.map(x => rep.hasReg ? [x.reg, x.name, x.time, x.status] : [x.name, x.time, x.status]));
+function download(rows, filename) {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([rows.map(r => r.map(q).join(',')).join('\n')], { type: 'text/csv' }));
-  a.download = rep.name.replace(/[^\w\- ]+/g, '') + '-' + rep.date + '.csv';
-  a.click();
+  a.download = filename.replace(/[^\w\- .]+/g, ''); a.click();
+}
+$('csv').onclick = () => {
+  const head = rep.hasReg ? ['Reg No', 'Name', 'Time', 'Status'] : ['Name', 'Time', 'Status'];
+  download([head].concat(rep.rows.map(x => rep.hasReg ? [x.reg, x.name, x.time, x.status] : [x.name, x.time, x.status])), rep.name + '-' + rep.date + '.csv');
+};
+$('sem').onclick = async () => {
+  const r = await post({ action: 'semester', ...auth() });
+  if (!r.startsWith('{')) return note('m2', 'Could not load the semester table.', false);
+  const s = JSON.parse(r), hasReg = s.people.some(p => p.reg);
+  const head = (hasReg ? ['Reg No'] : []).concat(['Name'], s.sessions.map(x => x.label), ['Total']);
+  download([head].concat(s.people.map(p => (hasReg ? [p.reg] : []).concat([p.name], p.marks, [p.marks.reduce((a, b) => a + b, 0)]))), s.class_name + '-semester.csv');
 };
 $('pdf').onclick = () => { document.body.classList.add('pl'); window.print(); document.body.classList.remove('pl'); };
 $('mail').onclick = async () => {
   let to = ls.get('ep_email') || '';
-  let r = await post({ action: 'email', ...S, email: to });
-  if (r === 'NO_EMAIL') { to = (prompt('Your email address') || '').trim(); if (!to) return; ls.set('ep_email', to); r = await post({ action: 'email', ...S, email: to }); }
+  const sid = $('sessel').value;
+  let r = await post({ action: 'email', ...auth(), session_id: sid, email: to });
+  if (r === 'NO_EMAIL') { to = (prompt('Your email address') || '').trim(); if (!to) return; ls.set('ep_email', to); r = await post({ action: 'email', ...auth(), session_id: sid, email: to }); }
   note('m2', r === 'SENT' ? 'Sent to your email.' : 'Could not send: ' + r, r === 'SENT');
 };
 $('addbtn').onclick = async () => {
   const lines = $('paste').value.split('\n').map(s => s.trim()).filter(Boolean);
   if (!lines.length) return note('m2', 'Paste at least one row.', false);
-  const r = await post({ action: 'manual', ...S, lines });
-  if (r.startsWith('ADDED:')) { note('m2', 'Added ' + r.split(':')[1] + '.', true); $('paste').value = ''; loadList(); }
-  else note('m2', 'Could not add: ' + r, false);
+  const sid = $('sessel').value, r = await post({ action: 'manual', ...auth(), session_id: sid, lines });
+  if (r.startsWith('ADDED:')) { await loadList(sid); note('m2', 'Added ' + r.split(':')[1] + '.', true); $('paste').value = ''; }
+  else note('m2', r === 'NO_SESSION' ? 'Start a sign-in first, then add people.' : 'Could not add: ' + r, false);
 };
 
-(async () => {
-  const saved = ls.get('ep_session');
-  if (saved) { try { S = JSON.parse(saved); showLive(false); return; } catch (e) { ls.del('ep_session'); } }
-  showSetup();
+(function boot() {
+  try { classes = JSON.parse(ls.get('ep_classes') || '[]'); } catch (e) { classes = []; }
+  cur = classes.find(c => c.id === ls.get('ep_current')) || classes[0] || null;
+  cur ? showClass() : showCreate();
 })();
 </script>
 </body>

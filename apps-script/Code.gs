@@ -1,11 +1,14 @@
 // E-Presence: QR attendance. Backend for Google Sheets + Apps Script.
-// Tabs (created automatically):
-//   Sessions:   session_id | name | pin | ask_regno | email | host_key | created_at | closes_at | is_open
+// A lecturer creates a CLASS once (it gets a QR code that never changes, so it can be printed),
+// then starts and ends SESSIONS under it. Tabs are created automatically:
+//   Classes:    class_id | name | ask_regno | email | host_key | created_at
+//   Sessions:   session_id | name | pin | ask_regno | email | host_key | created_at | closes_at | is_open | class_id
 //   Attendance: session_id | reg_no | name | device_id | time | status
 const TZ = 'Africa/Kampala';
 const SESSION_HOURS = 6;
 const TABS_ = {
-  Sessions: ['session_id', 'name', 'pin', 'ask_regno', 'email', 'host_key', 'created_at', 'closes_at', 'is_open'],
+  Classes: ['class_id', 'name', 'ask_regno', 'email', 'host_key', 'created_at'],
+  Sessions: ['session_id', 'name', 'pin', 'ask_regno', 'email', 'host_key', 'created_at', 'closes_at', 'is_open', 'class_id'],
   Attendance: ['session_id', 'reg_no', 'name', 'device_id', 'time', 'status']
 };
 
@@ -17,13 +20,22 @@ const clean_ = (v, n) => String(v == null ? '' : v).trim().replace(/^[=+\-@]+/, 
 const out_ = t => ContentService.createTextOutput(typeof t === 'string' ? t : JSON.stringify(t));
 const fmt_ = (d, f) => Utilities.formatDate(new Date(d), TZ, f);
 const setText_ = (sh, r, c, v) => sh.getRange(r, c).setNumberFormat('@').setValue(v);  // keeps leading zeros
+const validPin_ = p => /^[A-Za-z0-9]{3,10}$/.test(p);
+const validEmail_ = e => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
+const newId_ = n => Utilities.getUuid().replace(/-/g, '').slice(0, n);
 
 function doGet(e) {
   try { ensureTabs_(); } catch (err) { return out_('E-Presence is running, but tabs could not be created: ' + err); }
-  const id = e && e.parameter && e.parameter.s;
-  if (id) {
-    const s = session_(id);
-    return out_(s && isOpen_(s) ? { open: true, name: s[1], ask_regno: isTrue_(s[3]) } : { open: false });
+  const p = (e && e.parameter) || {};
+  if (p['class']) {                            // permanent class QR (note: Google reserves ?c=, so we use ?class=)
+    const c = class_(p['class']);
+    if (!c) return out_({ open: false });
+    const s = openOf_(c[0]);
+    return out_({ open: !!s, name: c[1], title: s && String(s[1]).indexOf(c[1] + ' - ') === 0 ? String(s[1]).slice(c[1].length + 3) : '', ask_regno: isTrue_(c[2]) });
+  }
+  if (p.s) {                                   // one-time session QR
+    const s = session_(p.s);
+    return out_(s ? { open: isOpen_(s), name: s[1], title: '', ask_regno: isTrue_(s[3]) } : { open: false });
   }
   return out_('E-Presence is running');
 }
@@ -34,9 +46,11 @@ function doPost(e) {
     lock.waitLock(20000);
     ensureTabs_();
     const d = JSON.parse(e.postData.contents), a = d.action;
+    if (a === 'newclass') return out_(newclass_(d));
     if (a === 'start') return out_(start_(d));
-    if (a === 'live') return out_(live_(d, false));
-    if (a === 'list') return out_(live_(d, true));
+    if (a === 'live') return out_(live_(d));
+    if (a === 'list') return out_(list_(d));
+    if (a === 'semester') return out_(semester_(d));
     if (a === 'setpin') return out_(setpin_(d));
     if (a === 'end') return out_(end_(d));
     if (a === 'manual') return out_(manual_(d));
@@ -53,7 +67,7 @@ function doPost(e) {
 // old version (different columns) aside instead of deleting them. Never erases data.
 function ensureTabs_() {
   const cache = CacheService.getScriptCache();
-  if (cache.get('tabs_v4')) return;
+  if (cache.get('tabs_v5')) return;
   const ss = SpreadsheetApp.getActive();
   ss.setSpreadsheetTimeZone(Session.getScriptTimeZone());
   Object.keys(TABS_).forEach(n => {
@@ -68,36 +82,58 @@ function ensureTabs_() {
       sh.setFrozenRows(1);
     }
   });
+  const ses = ss.getSheetByName('Sessions');   // Sheets from the previous version have no class_id column
+  if (!String(ses.getDataRange().getValues()[0][9] || '').trim()) ses.getRange(1, 10).setValue('class_id');
   const def = ss.getSheetByName('Sheet1');
   if (def && ss.getSheets().length > 1 && def.getLastRow() === 0) ss.deleteSheet(def);
-  cache.put('tabs_v4', '1', 21600);
+  cache.put('tabs_v5', '1', 21600);
 }
 
+const class_ = id => rows_('Classes').find(r => same_(r[0], id)) || null;
 const session_ = id => rows_('Sessions').find(r => same_(r[0], id)) || null;
 const isOpen_ = s => isTrue_(s[8]) && new Date() < new Date(s[7]);
-function hostSession_(d) { const s = session_(d.session_id); return s && same_(s[5], d.host_key) ? s : null; }
-const validPin_ = p => /^[A-Za-z0-9]{3,10}$/.test(p);
-const validEmail_ = e => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
+function hostClass_(d) { const c = class_(d.class_id); return c && same_(c[4], d.host_key) ? c : null; }
+const sessionsOf_ = cid => rows_('Sessions').filter(r => same_(r[9], cid));
+function openOf_(cid) {
+  const all = sessionsOf_(cid);
+  for (let i = all.length - 1; i >= 0; i--) if (isOpen_(all[i])) return all[i];
+  return null;
+}
+// The session the lecturer means: the one asked for (if it is theirs), else the open one, else the newest.
+function pick_(c, sid) {
+  const all = sessionsOf_(c[0]);
+  return all.find(r => sid && same_(r[0], sid)) || openOf_(c[0]) || all[all.length - 1] || null;
+}
 
-// Lecturer starts a session. No account: the server returns a private host key that only the
-// lecturer's browser keeps, and that is needed to see the list, change the PIN or end the session.
-function start_(d) {
-  const name = clean_(d.name, 80), pin = String(d.pin || '').trim();
+// Lecturer creates a class. No account: the server returns a private key that only the lecturer's
+// browser keeps, and that is needed to start sessions, see lists, change the PIN or end a session.
+function newclass_(d) {
+  const name = clean_(d.name, 60);
   if (!name) return 'MISSING_INFO';
-  if (!validPin_(pin)) return 'BAD_PIN_FORMAT';
   const cache = CacheService.getScriptCache(), n = Number(cache.get('starts') || 0);
   if (n >= 200) return 'BUSY';
   cache.put('starts', String(n + 1), 3600);
   const email = validEmail_(String(d.email || '').trim()) ? String(d.email).trim() : '';
-  const id = Utilities.getUuid().replace(/-/g, '').slice(0, 12), key = Utilities.getUuid();
-  const now = new Date(), sh = sheet_('Sessions');
-  sh.appendRow([id, name, pin, d.ask_regno !== false, email, key, now, new Date(now.getTime() + SESSION_HOURS * 3600000), true]);
+  const id = newId_(10), key = Utilities.getUuid();
+  sheet_('Classes').appendRow([id, name, d.ask_regno !== false, email, key, new Date()]);
+  return { class_id: id, host_key: key };
+}
+
+function start_(d) {
+  const c = hostClass_(d), pin = String(d.pin || '').trim();
+  if (!c) return 'BAD_SESSION';
+  if (!validPin_(pin)) return 'BAD_PIN_FORMAT';
+  const sh = sheet_('Sessions');
+  rows_('Sessions').forEach((r, i) => { if (same_(r[9], c[0]) && isTrue_(r[8])) sh.getRange(i + 2, 9).setValue(false); });
+  const title = clean_(d.title, 60), id = newId_(12), now = new Date();
+  sh.appendRow([id, title ? c[1] + ' - ' + title : c[1], pin, isTrue_(c[2]), c[3], c[4], now,
+    new Date(now.getTime() + SESSION_HOURS * 3600000), true, c[0]]);
   setText_(sh, sh.getLastRow(), 3, pin);
-  return { session_id: id, host_key: key };
+  return { session_id: id };
 }
 
 function scan_(d) {
-  const s = session_(d.session_id);
+  const s = d.class_id ? openOf_(d.class_id) : session_(d.session_id);
   if (!s || !isOpen_(s)) return 'NO_OPEN_SESSION';
 
   const cache = CacheService.getScriptCache(), sk = 'bad:' + s[0], dk = 'baddev:' + d.device_id;
@@ -125,46 +161,82 @@ function scan_(d) {
   return status === 'PRESENT' ? 'OK' : 'OK_FLAGGED';
 }
 
-function live_(d, withRows) {
-  const s = hostSession_(d);
-  if (!s) return 'BAD_SESSION';
-  const att = rows_('Attendance').filter(r => r[0] === s[0]);
-  const o = { name: s[1], pin: String(s[2]), ask_regno: isTrue_(s[3]), open: isOpen_(s), date: fmt_(s[6], 'yyyy-MM-dd'),
-    count: att.length, flagged: att.filter(r => r[5] === 'FLAGGED').length };
-  if (withRows) o.rows = att.map(r => ({ reg: String(r[1]), name: String(r[2]), time: fmt_(r[4], 'HH:mm'), status: r[5] }))
+function live_(d) {
+  const c = hostClass_(d);
+  if (!c) return 'BAD_SESSION';
+  const s = openOf_(c[0]);
+  const att = s ? rows_('Attendance').filter(r => r[0] === s[0]) : [];
+  return { class_name: c[1], ask_regno: isTrue_(c[2]), open: !!s, session_id: s ? s[0] : '', pin: s ? String(s[2]) : '',
+    title: s && String(s[1]).indexOf(c[1] + ' - ') === 0 ? String(s[1]).slice(c[1].length + 3) : '',
+    count: att.length, flagged: att.filter(r => r[5] === 'FLAGGED').length, sessions: sessionsOf_(c[0]).length };
+}
+
+// One session's list (newest by default) plus the list of all the class's sessions for a picker.
+function list_(d) {
+  const c = hostClass_(d);
+  if (!c) return 'BAD_SESSION';
+  const all = sessionsOf_(c[0]), ids = all.map(r => r[0]);
+  const att = rows_('Attendance').filter(r => ids.indexOf(r[0]) >= 0);
+  const sessions = all.map(r => ({ id: r[0], name: r[1], date: fmt_(r[6], 'yyyy-MM-dd'), time: fmt_(r[6], 'HH:mm'),
+    count: att.filter(a => a[0] === r[0]).length, open: isOpen_(r) })).reverse();
+  const s = pick_(c, d.session_id);
+  const o = { class_name: c[1], ask_regno: isTrue_(c[2]), sessions, session_id: s ? s[0] : '', name: s ? s[1] : c[1],
+    date: s ? fmt_(s[6], 'yyyy-MM-dd') : '', rows: [] };
+  if (s) o.rows = att.filter(r => r[0] === s[0]).map(r => ({ reg: String(r[1]), name: String(r[2]), time: fmt_(r[4], 'HH:mm'), status: r[5] }))
     .sort((a, b) => a.name.localeCompare(b.name));
   return o;
 }
 
+// Whole-semester table: one row per person, one column per session (1 = signed in), oldest session first.
+function semester_(d) {
+  const c = hostClass_(d);
+  if (!c) return 'BAD_SESSION';
+  const all = sessionsOf_(c[0]), askReg = isTrue_(c[2]);
+  const att = rows_('Attendance'), people = {}, order = [];
+  all.forEach((s, col) => att.filter(r => r[0] === s[0]).forEach(r => {
+    const k = String(askReg && r[1] ? r[1] : r[2]).trim().toLowerCase();
+    if (!people[k]) { people[k] = { reg: String(r[1]), name: String(r[2]), marks: all.map(() => 0) }; order.push(k); }
+    people[k].marks[col] = 1;
+  }));
+  return { class_name: c[1], ask_regno: askReg,
+    sessions: all.map(s => ({ id: s[0], label: fmt_(s[6], 'yyyy-MM-dd') + (String(s[1]).indexOf(c[1] + ' - ') === 0 ? ' ' + String(s[1]).slice(c[1].length + 3) : '') })),
+    people: order.map(k => people[k]).sort((a, b) => a.name.localeCompare(b.name)) };
+}
+
 function setpin_(d) {
-  const s = hostSession_(d), pin = String(d.pin || '').trim();
-  if (!s) return 'BAD_SESSION';
+  const c = hostClass_(d), pin = String(d.pin || '').trim();
+  if (!c) return 'BAD_SESSION';
   if (!validPin_(pin)) return 'BAD_PIN_FORMAT';
+  const s = openOf_(c[0]);
+  if (!s) return 'NO_OPEN_SESSION';
   setText_(sheet_('Sessions'), rows_('Sessions').findIndex(r => r[0] === s[0]) + 2, 3, pin);
   return 'OK';
 }
 
 function end_(d) {
-  const s = hostSession_(d);
-  if (!s) return 'BAD_SESSION';
-  sheet_('Sessions').getRange(rows_('Sessions').findIndex(r => r[0] === s[0]) + 2, 9).setValue(false);
+  const c = hostClass_(d);
+  if (!c) return 'BAD_SESSION';
+  const sh = sheet_('Sessions');
+  rows_('Sessions').forEach((r, i) => { if (same_(r[9], c[0]) && isTrue_(r[8])) sh.getRange(i + 2, 9).setValue(false); });
   return 'OK';
 }
 
 // Add people who have no phone. Accepts rows pasted from Google Sheets (tab or comma separated):
 // "Reg No <tab> Name" or "Name <tab> Reg No" or just a name. A cell with a digit and no spaces is the Reg No.
 function manual_(d) {
-  const s = hostSession_(d);
-  if (!s) return 'BAD_SESSION';
+  const c = hostClass_(d);
+  if (!c) return 'BAD_SESSION';
+  const s = pick_(c, d.session_id);
+  if (!s) return 'NO_SESSION';
   const sh = sheet_('Attendance'), all = rows_('Attendance').filter(r => r[0] === s[0]);
-  const askReg = isTrue_(s[3]);
+  const askReg = isTrue_(c[2]);
   let n = 0;
   (d.lines || []).forEach(line => {
-    const cells = String(line).split(/\t|,/).map(c => clean_(c, 60)).filter(Boolean);
+    const cells = String(line).split(/\t|,/).map(x => clean_(x, 60)).filter(Boolean);
     if (!cells.length) return;
     let reg = '', name = cells[0];
     if (cells.length >= 2) {
-      const isReg = c => /\d/.test(c) && !/\s/.test(c);
+      const isReg = x => /\d/.test(x) && !/\s/.test(x);
       if (isReg(cells[0]) && !isReg(cells[1])) { reg = cells[0]; name = cells[1]; }
       else if (isReg(cells[1]) && !isReg(cells[0])) { reg = cells[1]; name = cells[0]; }
       else { reg = cells[0]; name = cells[1]; }
@@ -180,18 +252,19 @@ function manual_(d) {
 }
 
 function email_(d) {
-  const s = hostSession_(d);
-  if (!s) return 'BAD_SESSION';
-  const to = validEmail_(String(d.email || '').trim()) ? String(d.email).trim() : String(s[4]).trim();
+  const c = hostClass_(d);
+  if (!c) return 'BAD_SESSION';
+  const to = validEmail_(String(d.email || '').trim()) ? String(d.email).trim() : String(c[3]).trim();
   if (!to) return 'NO_EMAIL';
-  const rows = live_(d, true).rows, hasReg = rows.some(r => r.reg);
+  const l = list_(d);
+  if (!l.session_id) return 'NO_SESSION';
+  const rows = l.rows, hasReg = rows.some(r => r.reg);
   const q = v => { v = String(v == null ? '' : v); if (/^[=+\-@]/.test(v)) v = "'" + v; return '"' + v.replace(/"/g, '""') + '"'; };
   const head = hasReg ? ['Reg No', 'Name', 'Time', 'Status'] : ['Name', 'Time', 'Status'];
   const csv = [head].concat(rows.map(r => hasReg ? [r.reg, r.name, r.time, r.status] : [r.name, r.time, r.status]))
     .map(r => r.map(q).join(',')).join('\n');
-  const date = fmt_(s[6], 'yyyy-MM-dd');
-  MailApp.sendEmail(to, 'Attendance: ' + s[1] + ' (' + date + ')', rows.length + ' signed in. List attached.',
-    { attachments: [Utilities.newBlob(csv, 'text/csv', String(s[1]).replace(/[^\w\- ]+/g, '') + '-' + date + '.csv')] });
+  MailApp.sendEmail(to, 'Attendance: ' + l.name + ' (' + l.date + ')', rows.length + ' signed in. List attached.',
+    { attachments: [Utilities.newBlob(csv, 'text/csv', String(l.name).replace(/[^\w\- ]+/g, '') + '-' + l.date + '.csv')] });
   return 'SENT';
 }
 
