@@ -33,7 +33,8 @@ if ($LASTEXITCODE -ne 0) {
 Step "Push to GitHub"
 Set-Location $repo
 git add .
-if (git status --porcelain) { git commit -q -m "E-Presence update"; Must 'git commit'; git push; Must 'git push' }
-else { Write-Host "Nothing new to push." }
+if (git status --porcelain) { git commit -q -m "E-Presence update"; Must 'git commit' }
+git push; Must 'git push'   # always push: also sends a commit left unpushed by an earlier failed run
 Write-Host "`nDONE. All checks passed and GitHub is up to date." -ForegroundColor Green
 Write-Host "Reload the lecturer page with Ctrl+F5: https://muhumuza684.github.io/E-PRESENT-/lecturer.html"
+
