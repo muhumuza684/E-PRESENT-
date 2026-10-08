@@ -1,84 +1,84 @@
 # E-Presence
 
-**QR-code attendance that replaces paper sheets. Built in Uganda by BrytMa Tech Uganda.**
+**QR-code attendance that replaces paper sign-in sheets. Built in Uganda by BrytMa Tech Uganda.**
 
-The lecturer creates a class once and gets a QR code that can be printed and used all semester. At each lecture they start sign-in with a PIN. Students scan the QR, type their Reg No, name and the PIN on the lecturer's screen, and they are signed in. The lecturer downloads the list as CSV, saves it as PDF, or has it emailed. No app to install, no accounts, no server to pay for: it runs on a Google Sheet, Google Apps Script and GitHub Pages.
+A lecturer creates a class once and gets a QR code that never changes, so it can be printed and used all semester. At each lecture they start sign-in with a PIN. Students scan the QR, type their Reg No, name and the PIN on the lecturer's screen, and they are signed in. The lecturer sees the list fill up live, then downloads a PDF or CSV, emails it, or prints it. No app to install, no accounts, no server to pay for: it runs on a Google Sheet, Google Apps Script and GitHub Pages.
 
-## How it works
+**Live system:** https://muhumuza684.github.io/E-PRESENT-/lecturer.html
 
-1. **Create your class once.** Open `lecturer.html`, type a class name (for example "CSC2101 Semester 1") and tap **Create class and QR code**. You get a QR code that **never changes**, so you can **print it** (tap **Print QR** for a poster) and stick it on the wall or put it in your slides for the whole semester.
-2. **Each lecture, start sign-in.** Optionally name the session ("Week 6"), keep or change the suggested PIN, and tap **Start sign-in**. The big PIN appears, ready to project. Students scan the same printed QR.
-3. **Students** scan, type their Reg No and full name (remembered on their phone for next time) and the PIN, and tap **Sign in**. If they scan before you have started, they see "Sign-in is not open right now" and a **Check again** button.
-4. **During class** you see a live count. **Change PIN** replaces the PIN at any moment. **End sign-in** closes it. Starting again next week reuses the same QR.
-5. **After class** tap **Lists & export**. Pick any session, then download a CSV, save a PDF, or email the list to yourself. **Whole semester** downloads one table with a row per student, a column per session and a total.
-6. **Someone without a phone?** Under *Add someone by hand*, paste rows copied from Google Sheets (Reg No and Name, one person per row, in either order). They merge into the session you are viewing, and duplicates are skipped.
+## Start here
 
-Prefer a QR that changes every time? While a session is open, tap **Use a one-time QR for this session instead**. That QR stops working when the session ends.
+| I want to... | Read |
+|---|---|
+| Use E-Presence as a lecturer | [docs/USER-GUIDE.md](docs/USER-GUIDE.md) |
+| Set it up for a new university or client | [docs/CLIENT-SETUP.md](docs/CLIENT-SETUP.md) |
+| Share or sell it to clients | [docs/SHARING.md](docs/SHARING.md) |
 
-For meetings and other gatherings, untick **Students also type a Reg No** when creating the class and students only enter their name.
+## What it does
 
-There are no lecturer accounts. The lecturer's browser keeps a private key for each class, which is needed to start sessions, see lists, change the PIN or end a session. Reopen the page on the same device and your classes are there. A session closes by itself after 6 hours.
+- **One QR for the whole semester.** Print it once. Or switch to a one-time QR for a single session.
+- **Session PIN.** Students cannot sign in without the PIN shown on the lecturer's screen. The lecturer can change it at any moment.
+- **Live lists.** The list updates by itself while sign-in is open. Every session keeps its own list, so a new session never shows earlier names.
+- **Status and Method.** Each row shows Status (Present or Check) and Method (Scanned or Added by hand).
+- **Real PDF.** University logo and name, lecturer name, page numbers, signature line, optional cover page and footer text, optional small "Powered by E-Presence" line. A built-in preview shows it before you download.
+- **Templates.** Digital list, weekly grid, time in and out, name and signature, or upload a CSV sample whose column headings become the PDF columns.
+- **CSV, email and whole-semester table.** One row per student, one column per session, with a total.
+- **Add by hand.** Paste rows copied from Google Sheets for people without phones.
+- **Branding.** University name, logo, welcome line and colour show on the student page. Themes, light and dark mode, and a back-up and restore for settings.
+- **Meetings too.** Choose "Name only" for meetings and workshops.
+- **No location tracking.** Only Reg No, name and sign-in time are stored.
 
-## Settings, themes and branding (v4)
+## How it is built
 
-- **Settings** (saved on the lecturer's own device, no account): university name, lecturer name, welcome line, logo, theme. **Back up settings** and **Restore** move them to a new phone.
-- **Students see your branding.** The university name, logo, colour and welcome line are saved with the class, so every student's sign-in page shows them, with the course unit under the university name.
-- **Themes.** The default is Delight (navy, magenta and yellow). Pick another preset, your own colour, and Auto, Light or Dark mode.
-- **Lists** show **Status** (Present or Check) and **Method** (Scanned or Added by hand) as separate columns, in the app, the CSV and the PDF.
-- **PDF** shows your university, lecturer name and a signature line, with no E-Presence or BrytMa branding. The credit lives on the About page.
-
-## New in v5
-
-- **Lists update live** while a session is open, and each session keeps its own list. A new session never shows earlier names. Pick any past session from the dropdown.
-- **Real PDF file** made on the lecturer's device: university logo and name, lecturer, page numbers, signature line, optional cover page and footer text, and an optional small "Powered by E-Presence" line.
-- **Templates:** digital list, weekly grid, time in and out, name and signature, or upload a CSV sample whose column headings become the PDF columns.
-- **Settings buttons:** Themes, Templates, PDF & pages, Student page (Reg No and name, or name only; welcome line).
-
-## What is in this repo
-
-| Path | What it is |
-|------|------------|
-| `index.html` | Student page, opened by the QR code |
-| `lecturer.html` | Lecturer page: start, QR and PIN, list, CSV, PDF, email, add by hand |
-| `apps-script/Code.gs` | Backend, runs as a Google Apps Script Web app |
-| `apps-script/appsscript.json` | Apps Script manifest (Kampala timezone, public Web app) |
+| Part | What it is |
+|---|---|
+| `lecturer.html` | The lecturer app (sidebar pages: Home, QR & PIN, Lists, Student view, Settings, About) |
+| `index.html` | The student sign-in page, opened by the QR code |
+| `apps-script/Code.gs` | The backend, a Google Apps Script web app that stores everything in a Google Sheet |
+| `apps-script/appsscript.json` | Apps Script manifest (Kampala timezone, public web app) |
 | `smoke-test.ps1` | Live end-to-end check of a deployed backend |
-| `deploy.ps1` | One-command update: deploy, live test, then push to GitHub |
+| `deploy.ps1` | One-command update: deploy, live test, push to GitHub |
+| `new-client.ps1` | Sets up a brand-new client: own Sheet, own backend, own pages, live test |
+| `update-clients.ps1` | Rolls a new version out to every client |
 
-## Setup
+Lecturer settings (university name, logo, theme, templates) are saved on the lecturer's own device. The university name, logo, colour and welcome line are also saved with the class so students' phones can show them.
 
-You need a Google account and a GitHub account.
+## Setup for one organisation (the short version)
 
-1. **Backend.** Create an empty Google Sheet. Open Extensions > Apps Script, paste `apps-script/Code.gs`, and apply the settings in `appsscript.json`. Deploy > New deployment > Web app (Execute as: Me, Who has access: Anyone). Approve the permissions (Sheet access and sending email). Copy the Web app URL.
-2. **Open the Web app URL once.** It should say `E-Presence is running`. This creates the `Classes`, `Sessions` and `Attendance` tabs, and sets the Sheet's timezone to match the script. Tabs from an older version are renamed "Old ...", never deleted.
-3. **Pages.** Put the Web app URL into `index.html` and `lecturer.html` (the `URL_` line near the bottom), then publish both files with GitHub Pages.
-4. **Check it.** Run `smoke-test.ps1 -Url <web app URL>`. It runs a full test session and prints PASS or FAIL for each step. Delete the rows named "SMOKE" from the Sheet afterwards.
+1. Create an empty Google Sheet. Extensions > Apps Script. Paste `apps-script/Code.gs`. Apply `appsscript.json`.
+2. Deploy > New deployment > Web app (Execute as: Me, access: Anyone). Approve the permissions. Copy the web app URL.
+3. Open the web app URL once. It should say `E-Presence is running`. The tabs are created automatically.
+4. Put the URL into `index.html` and `lecturer.html` (the `URL_` line near the bottom) and publish both with GitHub Pages.
+5. Run `smoke-test.ps1 -Url <web app URL>`.
 
-After any change to `Code.gs`, deploy a **new version** of the Web app. A plain save keeps the old code running.
+The easy way for a new client is `new-client.ps1`. See [docs/CLIENT-SETUP.md](docs/CLIENT-SETUP.md).
+
+**Two things learned the hard way:** after changing `Code.gs`, deploy a *new version* of the web app (a plain save keeps the old code running). And never use `?c=` in a web app link: Google reserves it and answers 400, which is why the class link uses `?class=`.
 
 ## Data and privacy
 
-- Everything lives in your own Google Sheet: the class and its sessions (names, PIN, optional email) and each sign-in (Reg No, name, time). There is no location tracking.
+- Everything lives in the organisation's own Google Sheet: classes, sessions, and each sign-in (Reg No, name, time). There is no location tracking.
 - Anyone with access to that Sheet can see everything in it, so keep it private.
-- Tell students what is collected, why, and how long you keep it. If you handle personal data in Uganda, make sure your use follows the Data Protection and Privacy Act, 2019.
+- Tell students what is collected, why, and how long you keep it. In Uganda, make sure your use follows the Data Protection and Privacy Act, 2019.
 
 ## Security: what it does and does not do
 
 Designed to be simple, not bulletproof.
 
-- **Does:** requires the session PIN to sign in, locks out a device after 5 wrong PINs, flags two people signing in from the same phone as **CHECK**, strips spreadsheet formula characters from names and titles, and keeps the list, PIN changes and export behind the lecturer's private key.
-- **Does not:** stop a student telling a friend the PIN (change the PIN mid-class if that worries you), prove the student is physically in the room, or hide data from anyone who can open the Sheet. The session PIN is stored as plain text in the Sheet.
-- Anyone can create a class. Classes are separate, and one lecturer cannot see another's lists without that class's private key.
-- Anyone who sees the printed QR can open the sign-in page. They still need the PIN, which only shows while you are teaching.
+- **Does:** needs the session PIN to sign in, locks a device after 5 wrong PINs, flags two people signing in from one phone as Check, strips spreadsheet formula characters from typed text, and keeps lists, PIN changes and exports behind the lecturer's private key.
+- **Does not:** stop a student telling a friend the PIN (change the PIN mid-class if that worries you), prove a student is physically in the room, or hide data from anyone who can open the Sheet. The PIN is stored as plain text.
 
-## Known limitations
+## Known limits
 
-- Built for a single Sheet and light use. Very large classes signing in at the same moment may be slow, because every sign-in is handled one at a time.
-- If a lecturer clears their browser data, their classes disappear from that browser and cannot be recovered. The attendance data stays in the Sheet, and the printed QR still works, but the lecturer must create a new class to control sessions.
-- PDF export uses the browser's print dialog.
+- Built for light use. Every sign-in is processed one at a time, so a very large class signing in at the same second may be slow. It has not been load-tested at scale, so run a real lecture next to paper first.
+- Google limits apply: for example about 100 emails a day on a free Google account.
+- A lecturer who clears browser data loses their classes in that browser. The attendance data stays in the Sheet and the printed QR keeps working.
+- Photo, PDF and Excel sample lists are kept as a reference only. CSV headings can become PDF columns.
+
+## Support
+
+Email: muhumuzabright26@gmail.com
 
 ## Credits
 
-Built in Uganda by **BrytMa Tech Uganda**.
-
-Copyright (c) 2026 BrytMa Tech Uganda. All rights reserved.
+Built in Uganda by **BrytMa Tech Uganda**. Copyright (c) 2026 BrytMa Tech Uganda. All rights reserved.
