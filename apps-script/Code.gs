@@ -49,6 +49,7 @@ function doPost(e) {
     const d = JSON.parse(e.postData.contents), a = d.action;
     if (a === 'newclass') return out_(newclass_(d));
     if (a === 'brand') return out_(brand_(d));
+    if (a === 'setreg') return out_(setreg_(d));
     if (a === 'start') return out_(start_(d));
     if (a === 'live') return out_(live_(d));
     if (a === 'list') return out_(list_(d));
@@ -132,6 +133,16 @@ function brand_(d) {
   const ok = /^data:image\/(png|jpeg);base64,[A-Za-z0-9+\/=]+$/.test(logo) && logo.length < 45000;
   const i = rows_('Classes').findIndex(r => r[0] === c[0]) + 2;
   sheet_('Classes').getRange(i, 7, 1, 4).setNumberFormat('@').setValues([[clean_(d.uni, 80), ok ? logo : '', clean_(d.welcome, 80), color]]);
+  return 'OK';
+}
+
+// Switch between "Reg No + name" and "Name only" for a class (also for its open session).
+function setreg_(d) {
+  const c = hostClass_(d);
+  if (!c) return 'BAD_SESSION';
+  const on = d.ask_regno !== false, sh = sheet_('Sessions');
+  sheet_('Classes').getRange(rows_('Classes').findIndex(r => r[0] === c[0]) + 2, 3).setValue(on);
+  rows_('Sessions').forEach((r, k) => { if (same_(r[9], c[0]) && isOpen_(r)) sh.getRange(k + 2, 4).setValue(on); });
   return 'OK';
 }
 

@@ -27,6 +27,13 @@ There are no lecturer accounts. The lecturer's browser keeps a private key for e
 - **Lists** show **Status** (Present or Check) and **Method** (Scanned or Added by hand) as separate columns, in the app, the CSV and the PDF.
 - **PDF** shows your university, lecturer name and a signature line, with no E-Presence or BrytMa branding. The credit lives on the About page.
 
+## New in v5
+
+- **Lists update live** while a session is open, and each session keeps its own list. A new session never shows earlier names. Pick any past session from the dropdown.
+- **Real PDF file** made on the lecturer's device: university logo and name, lecturer, page numbers, signature line, optional cover page and footer text, and an optional small "Powered by E-Presence" line.
+- **Templates:** digital list, weekly grid, time in and out, name and signature, or upload a CSV sample whose column headings become the PDF columns.
+- **Settings buttons:** Themes, Templates, PDF & pages, Student page (Reg No and name, or name only; welcome line).
+
 ## What is in this repo
 
 | Path | What it is |

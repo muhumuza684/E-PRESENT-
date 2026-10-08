@@ -45,6 +45,9 @@ try {
   $r = Call $late; Check 'sign-in is refused after sign-in ended' ($r -eq 'NO_OPEN_SESSION') $r
   $i = Get-Info "class=$cid"; Check 'same QR shows closed again' (-not $i.open) ($i | ConvertTo-Json -Compress)
 
+  $r = Call (@{ action = 'setreg'; ask_regno = $false } + $auth); $i = Get-Info "class=$cid"
+  Check 'switching to Name only reaches the student page' ($r -eq 'OK' -and -not $i.ask_regno) ($i | ConvertTo-Json -Compress)
+  $r = Call (@{ action = 'setreg'; ask_regno = $true } + $auth)
   $r = Call (@{ action = 'start'; pin = '2222'; title = 'Week 2' } + $auth)
   Check 'week 2 starts under the SAME QR' ($r.StartsWith('{')) $r
   $w2 = $scan.Clone(); $w2.pin = '2222'; $w2.device_id = 'smoke-3'
