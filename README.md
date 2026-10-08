@@ -19,6 +19,14 @@ For meetings and other gatherings, untick **Students also type a Reg No** when c
 
 There are no lecturer accounts. The lecturer's browser keeps a private key for each class, which is needed to start sessions, see lists, change the PIN or end a session. Reopen the page on the same device and your classes are there. A session closes by itself after 6 hours.
 
+## Settings, themes and branding (v4)
+
+- **Settings** (saved on the lecturer's own device, no account): university name, lecturer name, welcome line, logo, theme. **Back up settings** and **Restore** move them to a new phone.
+- **Students see your branding.** The university name, logo, colour and welcome line are saved with the class, so every student's sign-in page shows them, with the course unit under the university name.
+- **Themes.** The default is Delight (navy, magenta and yellow). Pick another preset, your own colour, and Auto, Light or Dark mode.
+- **Lists** show **Status** (Present or Check) and **Method** (Scanned or Added by hand) as separate columns, in the app, the CSV and the PDF.
+- **PDF** shows your university, lecturer name and a signature line, with no E-Presence or BrytMa branding. The credit lives on the About page.
+
 ## What is in this repo
 
 | Path | What it is |

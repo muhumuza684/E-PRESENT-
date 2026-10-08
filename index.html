@@ -9,13 +9,13 @@
   body{font-family:system-ui,sans-serif;margin:0;background:#f4f6f8;color:#111;min-height:100vh;display:flex;flex-direction:column}
   main{width:100%;max-width:420px;margin:0 auto;padding:16px;flex:1}
   .brand{display:flex;align-items:center;gap:10px;margin-bottom:8px}
-  .logo{background:#0b5cad;color:#fff;width:38px;height:38px;border-radius:9px;display:grid;place-items:center;font-weight:800;font-size:1.2rem}
+  .logo{background:linear-gradient(135deg,var(--b,#104898),#e80888);color:#fff;width:56px;height:56px;border-radius:14px;overflow:hidden;display:grid;place-items:center;font-weight:800;font-size:1.2rem}
   .brand b{display:block;font-size:1.1rem}.brand span{font-size:.75rem;color:#555}
-  h1{font-size:1.35rem;margin:10px 0 4px;word-break:break-word}
+  h1{font-size:1.4rem;margin:8px 0 2px;word-break:break-word;text-align:center}h1+#sub{text-align:center}#lg img{width:100%;height:100%;object-fit:contain;background:#fff}
   label{display:block;margin-top:10px;font-weight:600;font-size:.9rem}
   input{width:100%;font-size:16px;padding:12px;margin-top:4px;border:2px solid #8a8f98;border-radius:10px;background:#fff}
-  input:focus{outline:none;border-color:#0b5cad}
-  button{width:100%;font-size:1.05rem;padding:14px;margin-top:14px;border:0;border-radius:10px;background:#0b5cad;color:#fff;font-weight:700}
+  input:focus{outline:none;border-color:var(--b,#104898)}
+  button{width:100%;font-size:1.05rem;padding:14px;margin-top:14px;border:0;border-radius:10px;background:var(--b,#104898);color:#fff;font-weight:700}
   button:disabled{opacity:.6}
   #msg{margin-top:12px;padding:12px;border-radius:10px;font-weight:600;display:none}
   .ok{background:#d6f5dc;color:#0a5c1f}.warn{background:#fff0c2;color:#6b4e00}.err{background:#fde0e0;color:#8a1111}
@@ -26,7 +26,7 @@
 </head>
 <body>
 <main>
-  <header class="brand"><div class="logo">E</div><div><b>E-Presence</b><span>BrytMa Tech Uganda</span></div></header>
+  <header class="brand" style="flex-direction:column;text-align:center"><div class="logo" id="lg">E</div><b id="uni" style="font-size:1.15rem">E-Presence</b></header>
   <h1 id="ttl">Sign in</h1>
   <div id="sub" style="color:#444;margin-bottom:4px"></div>
   <div id="loading" style="color:#555;margin-top:12px">Loading...</div>
@@ -38,9 +38,10 @@
   </div>
   <div id="done"><div class="tick">&#10003;</div><h2 id="donetxt">You are signed in</h2><p id="donesub" style="color:#444"></p></div>
   <div id="msg"></div>
-  <button id="again" style="display:none;background:#fff;color:#0b5cad;border:2px solid #0b5cad">Check again</button>
+  <button id="again" style="display:none;background:#fff;color:var(--b,#104898);border:2px solid var(--b,#104898)">Check again</button>
 </main>
-<p class="foot">Built in Uganda by BrytMa Tech Uganda</p>
+<p class="foot">Built in Uganda<br>by BrytMa Tech Uganda &middot; <a href="#" onclick="document.getElementById('ab').style.display='block';return false" style="color:var(--b,#104898);font-weight:700">About</a></p>
+<div id="ab" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);padding:16px;overflow:auto" onclick="this.style.display='none'"><div style="background:#fff;color:#111;max-width:420px;margin:6vh auto;padding:18px;border-radius:14px"><b>E-Presence</b><p>QR-code attendance that replaces paper sheets. No location tracking. Only your Reg No, name and sign-in time are stored, in your lecturer's own records.</p><p>Built in Uganda by <b>BrytMa Tech Uganda</b><br><a href="mailto:muhumuzabright26@gmail.com">muhumuzabright26@gmail.com</a></p><p style="color:#555;font-size:.85rem">More from BrytMa Tech: books, commercial software, business intelligence, Microsoft Power BI, Oracle BI, data pipelines, web and app development.</p><p style="color:#555;font-size:.8rem">Tap anywhere to close.</p></div></div>
 <script>
 const URL_ = 'https://script.google.com/macros/s/AKfycbxrvdQluH9CZ-FB8zzxQ3RUgnOSw2zYmo1kqXT61VZMAhpSZnTgpTrrUKTLdnw9PaspEw/exec';
 const $ = id => document.getElementById(id);
@@ -79,7 +80,10 @@ async function init() {
   catch (e) { $('loading').style.display = 'none'; $('again').style.display = 'block'; return show('No connection. Check your data and try again.', 'err'); }
   $('loading').style.display = 'none';
   if (info.name) { $('ttl').textContent = info.name; document.title = info.name + ' | E-Presence'; }
-  $('sub').textContent = info.title || '';
+  $('sub').textContent = [info.title, info.welcome].filter(Boolean).join(' \u00b7 ');
+  if (info.uni) $('uni').textContent = info.uni;
+  if (/^data:image\/(png|jpeg);base64,/.test(info.logo || '')) { const im = new Image(); im.src = info.logo; $('lg').textContent = ''; $('lg').appendChild(im); }
+  if (/^#[0-9a-fA-F]{6}$/.test(info.color || '')) document.documentElement.style.setProperty('--b', info.color);
   if (!info.open) { $('again').style.display = 'block'; return show('Sign-in is not open right now. Ask your lecturer, then tap Check again.', 'warn'); }
   $('regbox').style.display = info.ask_regno ? 'block' : 'none';
   $('reg').value = localStorage.getItem('last_reg') || '';

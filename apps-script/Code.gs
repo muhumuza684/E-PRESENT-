@@ -7,7 +7,7 @@
 const TZ = 'Africa/Kampala';
 const SESSION_HOURS = 6;
 const TABS_ = {
-  Classes: ['class_id', 'name', 'ask_regno', 'email', 'host_key', 'created_at'],
+  Classes: ['class_id', 'name', 'ask_regno', 'email', 'host_key', 'created_at', 'uni', 'logo', 'welcome', 'color'],
   Sessions: ['session_id', 'name', 'pin', 'ask_regno', 'email', 'host_key', 'created_at', 'closes_at', 'is_open', 'class_id'],
   Attendance: ['session_id', 'reg_no', 'name', 'device_id', 'time', 'status']
 };
@@ -31,7 +31,8 @@ function doGet(e) {
     const c = class_(p['class']);
     if (!c) return out_({ open: false });
     const s = openOf_(c[0]);
-    return out_({ open: !!s, name: c[1], title: s && String(s[1]).indexOf(c[1] + ' - ') === 0 ? String(s[1]).slice(c[1].length + 3) : '', ask_regno: isTrue_(c[2]) });
+    return out_({ open: !!s, name: c[1], title: s && String(s[1]).indexOf(c[1] + ' - ') === 0 ? String(s[1]).slice(c[1].length + 3) : '', ask_regno: isTrue_(c[2]),
+      uni: String(c[6] || ''), logo: String(c[7] || ''), welcome: String(c[8] || ''), color: String(c[9] || '') });
   }
   if (p.s) {                                   // one-time session QR
     const s = session_(p.s);
@@ -47,6 +48,7 @@ function doPost(e) {
     ensureTabs_();
     const d = JSON.parse(e.postData.contents), a = d.action;
     if (a === 'newclass') return out_(newclass_(d));
+    if (a === 'brand') return out_(brand_(d));
     if (a === 'start') return out_(start_(d));
     if (a === 'live') return out_(live_(d));
     if (a === 'list') return out_(list_(d));
@@ -67,7 +69,7 @@ function doPost(e) {
 // old version (different columns) aside instead of deleting them. Never erases data.
 function ensureTabs_() {
   const cache = CacheService.getScriptCache();
-  if (cache.get('tabs_v5')) return;
+  if (cache.get('tabs_v6')) return;
   const ss = SpreadsheetApp.getActive();
   ss.setSpreadsheetTimeZone(Session.getScriptTimeZone());
   Object.keys(TABS_).forEach(n => {
@@ -84,9 +86,11 @@ function ensureTabs_() {
   });
   const ses = ss.getSheetByName('Sessions');   // Sheets from the previous version have no class_id column
   if (!String(ses.getDataRange().getValues()[0][9] || '').trim()) ses.getRange(1, 10).setValue('class_id');
+  const cl = ss.getSheetByName('Classes');      // branding columns added in v4
+  if (!String(cl.getDataRange().getValues()[0][6] || '').trim()) cl.getRange(1, 7, 1, 4).setValues([['uni', 'logo', 'welcome', 'color']]);
   const def = ss.getSheetByName('Sheet1');
   if (def && ss.getSheets().length > 1 && def.getLastRow() === 0) ss.deleteSheet(def);
-  cache.put('tabs_v5', '1', 21600);
+  cache.put('tabs_v6', '1', 21600);
 }
 
 const class_ = id => rows_('Classes').find(r => same_(r[0], id)) || null;
@@ -115,8 +119,20 @@ function newclass_(d) {
   cache.put('starts', String(n + 1), 3600);
   const email = validEmail_(String(d.email || '').trim()) ? String(d.email).trim() : '';
   const id = newId_(10), key = Utilities.getUuid();
-  sheet_('Classes').appendRow([id, name, d.ask_regno !== false, email, key, new Date()]);
+  sheet_('Classes').appendRow([id, name, d.ask_regno !== false, email, key, new Date(), '', '', '', '']);
+  brand_(Object.assign({}, d, { class_id: id, host_key: key }));
   return { class_id: id, host_key: key };
+}
+
+// Branding shown on students' phones (university, small logo, welcome line, colour). Saved with the class.
+function brand_(d) {
+  const c = hostClass_(d);
+  if (!c) return 'BAD_SESSION';
+  const logo = String(d.logo || ''), color = /^#[0-9a-fA-F]{6}$/.test(String(d.color || '')) ? d.color : '';
+  const ok = /^data:image\/(png|jpeg);base64,[A-Za-z0-9+\/=]+$/.test(logo) && logo.length < 45000;
+  const i = rows_('Classes').findIndex(r => r[0] === c[0]) + 2;
+  sheet_('Classes').getRange(i, 7, 1, 4).setNumberFormat('@').setValues([[clean_(d.uni, 80), ok ? logo : '', clean_(d.welcome, 80), color]]);
+  return 'OK';
 }
 
 function start_(d) {
@@ -182,7 +198,7 @@ function list_(d) {
   const s = pick_(c, d.session_id);
   const o = { class_name: c[1], ask_regno: isTrue_(c[2]), sessions, session_id: s ? s[0] : '', name: s ? s[1] : c[1],
     date: s ? fmt_(s[6], 'yyyy-MM-dd') : '', rows: [] };
-  if (s) o.rows = att.filter(r => r[0] === s[0]).map(r => ({ reg: String(r[1]), name: String(r[2]), time: fmt_(r[4], 'HH:mm'), status: r[5] }))
+  if (s) o.rows = att.filter(r => r[0] === s[0]).map(r => ({ reg: String(r[1]), name: String(r[2]), time: fmt_(r[4], 'HH:mm'), status: r[5] === 'FLAGGED' ? 'Check' : 'Present', method: r[3] === 'MANUAL' ? 'Added by hand' : 'Scanned' }))
     .sort((a, b) => a.name.localeCompare(b.name));
   return o;
 }
@@ -260,8 +276,8 @@ function email_(d) {
   if (!l.session_id) return 'NO_SESSION';
   const rows = l.rows, hasReg = rows.some(r => r.reg);
   const q = v => { v = String(v == null ? '' : v); if (/^[=+\-@]/.test(v)) v = "'" + v; return '"' + v.replace(/"/g, '""') + '"'; };
-  const head = hasReg ? ['Reg No', 'Name', 'Time', 'Status'] : ['Name', 'Time', 'Status'];
-  const csv = [head].concat(rows.map(r => hasReg ? [r.reg, r.name, r.time, r.status] : [r.name, r.time, r.status]))
+  const head = hasReg ? ['Reg No', 'Name', 'Time', 'Status', 'Method'] : ['Name', 'Time', 'Status', 'Method'];
+  const csv = [head].concat(rows.map(r => hasReg ? [r.reg, r.name, r.time, r.status, r.method] : [r.name, r.time, r.status, r.method]))
     .map(r => r.map(q).join(',')).join('\n');
   MailApp.sendEmail(to, 'Attendance: ' + l.name + ' (' + l.date + ')', rows.length + ' signed in. List attached.',
     { attachments: [Utilities.newBlob(csv, 'text/csv', String(l.name).replace(/[^\w\- ]+/g, '') + '-' + l.date + '.csv')] });
